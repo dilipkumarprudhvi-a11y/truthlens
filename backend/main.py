@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import random
@@ -206,36 +206,55 @@ def extract_claims(text, doc):
 
 backend_dir = os.path.dirname(os.path.abspath(__file__))
 
-@app.get("/")
+def load_asset(filename):
+    for candidate in [
+        os.path.join(backend_dir, filename),
+        filename,
+        os.path.join("/app", filename),
+        os.path.join(os.getcwd(), filename),
+        os.path.join(os.getcwd(), "backend", filename),
+    ]:
+        if os.path.exists(candidate):
+            try:
+                with open(candidate, "r", encoding="utf-8") as f:
+                    return f.read()
+            except Exception as e:
+                print(f"[Asset Read Error] {filename}: {e}")
+    return ""
+
+INDEX_HTML = load_asset("index.html")
+STYLE_CSS  = load_asset("style.css")
+APP_JS     = load_asset("app_v4.js") or load_asset("app.js")
+CONFIG_JS  = load_asset("config_v4.js") or load_asset("config.js")
+
+@app.get("/", response_class=HTMLResponse)
 def read_root():
-    for p in [os.path.join(backend_dir, "index.html"), "index.html", "/app/index.html", "./index.html", "../index.html"]:
-        if os.path.exists(p):
-            return FileResponse(p, media_type="text/html")
-    return {
-        "status": "TruthLens API v2 — Running",
-        "nlp_available": NLP_AVAILABLE,
-        "db_path": db_path
-    }
+    if INDEX_HTML:
+        return HTMLResponse(content=INDEX_HTML)
+    for candidate in [os.path.join(backend_dir, "index.html"), "index.html", "/app/index.html"]:
+        if os.path.exists(candidate):
+            return FileResponse(candidate, media_type="text/html")
+    return HTMLResponse(content="<!DOCTYPE html><html><body><h1>TruthLens App Running</h1></body></html>")
 
 @app.get("/style.css")
 def get_css():
-    return FileResponse(os.path.join(backend_dir, "style.css"))
+    if STYLE_CSS:
+        return Response(content=STYLE_CSS, media_type="text/css")
+    return Response(content="", media_type="text/css")
 
 @app.get("/app_v4.js")
+@app.get("/app.js")
 def get_app_js():
-    return FileResponse(os.path.join(backend_dir, "app_v4.js"))
+    if APP_JS:
+        return Response(content=APP_JS, media_type="application/javascript")
+    return Response(content="", media_type="application/javascript")
 
 @app.get("/config_v4.js")
-def get_config_js():
-    return FileResponse(os.path.join(backend_dir, "config_v4.js"))
-
-@app.get("/app.js")
-def get_old_app_js():
-    return FileResponse(os.path.join(backend_dir, "app_v4.js"))
-
 @app.get("/config.js")
-def get_old_config_js():
-    return FileResponse(os.path.join(backend_dir, "config_v4.js"))
+def get_config_js():
+    if CONFIG_JS:
+        return Response(content=CONFIG_JS, media_type="application/javascript")
+    return Response(content="", media_type="application/javascript")
 
 @app.get("/health")
 def health_check():
