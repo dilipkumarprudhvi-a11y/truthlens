@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import random
@@ -203,13 +204,38 @@ def extract_claims(text, doc):
 # ROUTES
 # ─────────────────────────────────────────────
 
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+
 @app.get("/")
 def read_root():
+    index_path = os.path.join(backend_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
     return {
         "status": "TruthLens API v2 — Running",
         "nlp_available": NLP_AVAILABLE,
         "db_path": db_path
     }
+
+@app.get("/style.css")
+def get_css():
+    return FileResponse(os.path.join(backend_dir, "style.css"))
+
+@app.get("/app_v4.js")
+def get_app_js():
+    return FileResponse(os.path.join(backend_dir, "app_v4.js"))
+
+@app.get("/config_v4.js")
+def get_config_js():
+    return FileResponse(os.path.join(backend_dir, "config_v4.js"))
+
+@app.get("/app.js")
+def get_old_app_js():
+    return FileResponse(os.path.join(backend_dir, "app_v4.js"))
+
+@app.get("/config.js")
+def get_old_config_js():
+    return FileResponse(os.path.join(backend_dir, "config_v4.js"))
 
 @app.get("/health")
 def health_check():

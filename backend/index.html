@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TruthLens | AI Fake News Detection</title>
+    <meta name="description" content="Advanced AI-powered fake news detection with NLP, sentiment analysis, bias detection, readability scoring and more.">
+    <link rel="stylesheet" href="style.css">
+    <script src="config.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Animated Background Orbs -->
+    <div class="bg-blur neon-blue"></div>
+    <div class="bg-blur neon-purple"></div>
+    <div class="bg-blur neon-cyan"></div>
+
+    <div class="page-layout">
+
+        <!-- ===== SIDEBAR: HISTORY ===== -->
+        <aside class="sidebar" id="history-sidebar">
+            <div class="sidebar-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <h3>History</h3>
+            </div>
+
+            <!-- Stats Strip -->
+            <div class="stats-strip" id="stats-strip">
+                <div class="stat-pill" id="stat-total"><span class="stat-num">0</span><span class="stat-lbl">Total</span></div>
+                <div class="stat-pill real" id="stat-real"><span class="stat-num">0</span><span class="stat-lbl">Real</span></div>
+                <div class="stat-pill suspicious" id="stat-sus"><span class="stat-num">0</span><span class="stat-lbl">Sus.</span></div>
+                <div class="stat-pill fake" id="stat-fake"><span class="stat-num">0</span><span class="stat-lbl">Fake</span></div>
+            </div>
+
+            <div class="history-list" id="history-list">
+                <div class="history-empty">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    <p>No history yet</p>
+                    <span>Analyses appear here</span>
+                </div>
+            </div>
+            <button class="btn-clear-history hidden" id="clear-history-btn">🗑 Clear History</button>
+        </aside>
+
+        <!-- ===== MAIN CONTENT ===== -->
+        <main class="main-content">
+
+            <!-- Header -->
+            <header class="app-header">
+                <div class="logo-block">
+                    <div class="logo-icon">🔍</div>
+                    <div>
+                        <div class="logo"><span class="highlight">Truth</span>Lens</div>
+                        <p class="tagline">Advanced NLP Misinformation Detector v2</p>
+                    </div>
+                </div>
+                <div class="header-badge">
+                    <span class="badge-dot"></span>
+                    NLP Engine Active
+                </div>
+            </header>
+
+            <!-- ===== INPUT ===== -->
+            <section class="scanner-section">
+                <div class="glass-panel input-panel">
+                    <div class="input-header">
+                        <h2>Submit Content for Analysis</h2>
+                        <p>Paste news article text, a social media post, or any suspicious claim below.</p>
+                    </div>
+                    <form id="analyze-form">
+                        <div class="input-tabs">
+                            <button type="button" class="tab-btn active" id="tab-text" onclick="switchTab('text')">📝 Text</button>
+                            <button type="button" class="tab-btn" id="tab-media" onclick="switchTab('media')">🖼 Media / URL</button>
+                        </div>
+
+                        <!-- Text Tab -->
+                        <div id="tab-text-content" class="tab-content active">
+                            <textarea id="news-input" rows="8" placeholder="Paste article text, headline, or claim here..."></textarea>
+                            <div class="char-count"><span id="char-count">0</span> chars · <span id="word-count-live">0</span> words</div>
+                        </div>
+
+                        <!-- Media/URL Tab -->
+                        <div id="tab-media-content" class="tab-content">
+                            <div class="media-input-group">
+                                <input type="url" id="url-input" placeholder="https://example.com/article..." class="url-input">
+                                <button type="button" class="btn-fetch" id="fetch-url-btn">Fetch Text</button>
+                            </div>
+                            <div class="media-drop-zone" id="media-drop-zone">
+                                <span style="font-size:2rem">📂</span>
+                                <p>Drop an image / screenshot here</p>
+                                <span>or <label for="media-file-input" class="file-label">browse files</label></span>
+                                <input type="file" id="media-file-input" accept="image/*" style="display:none">
+                            </div>
+                            <div class="media-preview hidden" id="media-preview">
+                                <img id="preview-img" src="" alt="Preview">
+                                <button type="button" class="btn-remove-media" id="remove-media-btn">✕ Remove</button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary" id="analyze-btn">
+                            <span class="btn-icon-svg">🔎</span>
+                            <span class="btn-text">Analyze Content</span>
+                            <div class="spinner hidden" id="loading-spinner"></div>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ===== RESULTS (hidden until analyzed) ===== -->
+            <section class="results-section hidden" id="results-panel">
+
+                <!-- 1. SCORE CARD -->
+                <div class="glass-panel results-card" id="section-score">
+                    <div class="results-top-bar">
+                        <h2>📊 Analysis Results</h2>
+                        <div class="top-bar-actions">
+                            <button class="btn-sm" id="share-btn" title="Copy report">📋 Copy</button>
+                            <button class="btn-sm" id="download-report-btn">⬇ Download</button>
+                        </div>
+                    </div>
+                    <div class="score-container">
+                        <div class="circular-progress">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="bg" cx="50" cy="50" r="42"></circle>
+                                <circle class="progress" cx="50" cy="50" r="42" id="score-ring"></circle>
+                            </svg>
+                            <div class="score-value">
+                                <span id="credibility-score">--</span><span class="pct">%</span>
+                                <div class="score-label" id="score-label-text">Credibility</div>
+                            </div>
+                        </div>
+                        <div class="verdict-info">
+                            <div class="verdict-badge-row">
+                                <h3 class="status unknown" id="classification-badge">UNKNOWN</h3>
+                                <span class="nlp-tag" id="sentiment-tag">–</span>
+                            </div>
+                            <p class="verdict-message" id="classification-message">Awaiting analysis...</p>
+                            <div class="mini-metrics">
+                                <div class="mini-metric"><span class="mini-label">Words</span><span class="mini-val" id="word-count">—</span></div>
+                                <div class="mini-metric"><span class="mini-label">Fake Risk</span><span class="mini-val" id="fake-prob">—</span></div>
+                                <div class="mini-metric"><span class="mini-label">Confidence</span><span class="mini-val" id="confidence-metric">—</span></div>
+                                <div class="mini-metric"><span class="mini-label">Entities</span><span class="mini-val" id="entity-count">—</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. SENTIMENT + BIAS (side by side) -->
+                <div class="results-grid two-col" id="section-sentiment-bias">
+
+                    <!-- Sentiment -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">😤 <h3>Sentiment Analysis</h3></div>
+                        <p class="panel-desc">Emotional tone detected by lexical analysis:</p>
+                        <div class="sentiment-tone" id="sentiment-tone-badge">–</div>
+                        <div class="bar-group">
+                            <div class="bar-row"><span>Positive</span><div class="bar-track"><div class="bar-fill green" id="bar-positive"></div></div><span id="val-positive">0%</span></div>
+                            <div class="bar-row"><span>Negative</span><div class="bar-track"><div class="bar-fill red" id="bar-negative"></div></div><span id="val-negative">0%</span></div>
+                            <div class="bar-row"><span>Fear/Urgency</span><div class="bar-track"><div class="bar-fill amber" id="bar-fear"></div></div><span id="val-fear">0%</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Bias -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">⚖️ <h3>Bias Detection</h3></div>
+                        <p class="panel-desc">Political and ideological signals detected:</p>
+                        <div class="bias-leaning" id="bias-leaning-badge">–</div>
+                        <div class="bias-meter-wrap">
+                            <span class="bias-end">Left</span>
+                            <div class="bias-track"><div class="bias-needle" id="bias-needle"></div></div>
+                            <span class="bias-end">Right</span>
+                        </div>
+                        <div class="trigger-chips" id="bias-triggers"></div>
+                    </div>
+                </div>
+
+                <!-- 3. CLICKBAIT + VIRALITY (side by side) -->
+                <div class="results-grid two-col" id="section-clickbait-virality">
+
+                    <!-- Clickbait -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">🎣 <h3>Clickbait Detector</h3></div>
+                        <p class="panel-desc">Sensationalist language and clickbait patterns:</p>
+                        <div class="big-score-row">
+                            <div class="big-score" id="clickbait-score-val">0</div>
+                            <div>
+                                <div class="big-score-label" id="clickbait-level">–</div>
+                                <div class="clickbait-stats" id="clickbait-stats"></div>
+                            </div>
+                        </div>
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar-track"><div class="progress-bar-fill orange" id="clickbait-bar"></div></div>
+                        </div>
+                        <div class="trigger-chips" id="clickbait-triggers"></div>
+                    </div>
+
+                    <!-- Virality Risk -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">📡 <h3>Virality Risk</h3></div>
+                        <p class="panel-desc">Likelihood this content could spread as misinformation:</p>
+                        <div class="big-score-row">
+                            <div class="big-score" id="virality-score-val">0</div>
+                            <div>
+                                <div class="big-score-label" id="virality-risk-label">–</div>
+                                <div class="panel-desc" style="margin:0;font-size:0.75rem">Combined risk index</div>
+                            </div>
+                        </div>
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar-track"><div class="progress-bar-fill red" id="virality-bar"></div></div>
+                        </div>
+                        <div class="virality-factors" id="virality-factors"></div>
+                    </div>
+                </div>
+
+                <!-- 4. READABILITY + WRITING STYLE (side by side) -->
+                <div class="results-grid two-col" id="section-readability-writing">
+
+                    <!-- Readability -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">📖 <h3>Readability Score</h3></div>
+                        <p class="panel-desc">Flesch Reading Ease analysis:</p>
+                        <div class="big-score-row">
+                            <div class="big-score" id="readability-score-val">0</div>
+                            <div>
+                                <div class="big-score-label" id="readability-grade">–</div>
+                            </div>
+                        </div>
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar-track"><div class="progress-bar-fill blue" id="readability-bar"></div></div>
+                        </div>
+                        <div class="readability-stats" id="readability-stats"></div>
+                    </div>
+
+                    <!-- Writing Style -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">✍️ <h3>Writing Style</h3></div>
+                        <p class="panel-desc">Linguistic structure metrics:</p>
+                        <div class="style-formality" id="style-formality">–</div>
+                        <div class="style-grid" id="style-grid"></div>
+                    </div>
+                </div>
+
+                <!-- 5. EVIDENCE + CONTEXT (side by side) -->
+                <div class="results-grid two-col" id="section-evidence-context">
+
+                    <!-- NLP Evidence -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">🧩 <h3>NLP Evidence Extraction</h3></div>
+                        <p class="panel-desc">Named entities identified by spaCy:</p>
+                        <div class="entity-tags" id="entity-tags"><span class="no-entities">No entities detected yet</span></div>
+                        <div class="entity-legend">
+                            <span class="legend-item person"><i></i>Person</span>
+                            <span class="legend-item org"><i></i>Org</span>
+                            <span class="legend-item gpe"><i></i>Location</span>
+                            <span class="legend-item loc"><i></i>Place</span>
+                        </div>
+                    </div>
+
+                    <!-- Actual News Context -->
+                    <div class="glass-panel">
+                        <div class="panel-heading">📰 <h3>Actual News Context</h3></div>
+                        <p class="panel-desc">Cross-reference analysis based on extracted entities:</p>
+                        <div class="context-box" id="context-box">Awaiting analysis...</div>
+                        <div class="context-sources" id="context-sources"></div>
+                    </div>
+                </div>
+
+                <!-- 6. EXTRACTED CLAIMS -->
+                <div class="glass-panel" id="section-claims">
+                    <div class="panel-heading">🔍 <h3>Extracted Factual Claims</h3></div>
+                    <p class="panel-desc">Key declarative statements detected in the text for independent fact-checking:</p>
+                    <div class="claims-list" id="claims-list"></div>
+                </div>
+
+                <!-- 7. TRIGGERED KEYWORDS -->
+                <div class="glass-panel" id="section-keywords">
+                    <div class="panel-heading">🚨 <h3>Suspicious Keywords Detected</h3></div>
+                    <p class="panel-desc">Words and phrases that match known misinformation patterns:</p>
+                    <div class="keyword-chips" id="keyword-chips"><span class="no-entities">None detected — content appears clean.</span></div>
+                </div>
+
+                <!-- 8. MEDIA EVIDENCE -->
+                <div class="glass-panel" id="section-media">
+                    <div class="panel-heading">🖼️ <h3>Media & Evidence Verification</h3></div>
+                    <p class="panel-desc">Simulated reverse-image search and media cross-reference results:</p>
+                    <div class="media-evidence-grid" id="media-evidence-grid"></div>
+                </div>
+
+                <!-- 9. FULL REPORT -->
+                <div class="glass-panel" id="section-report">
+                    <div class="panel-heading">
+                        📄 <h3>Full Analysis Report</h3>
+                        <button class="btn-sm ml-auto" id="download-report-btn2">⬇ Download .txt</button>
+                    </div>
+                    <pre class="description-text" id="description-text">Run an analysis to generate the full report here.</pre>
+                </div>
+
+            </section>
+        </main>
+    </div>
+
+    <script src="config_v4.js"></script>
+    <script src="app_v4.js"></script>
+</body>
+</html>
