@@ -2,7 +2,9 @@
 // TruthLens v2 — app.js (Complete)
 // =============================================
 
-const API = (typeof CONFIG !== 'undefined' && CONFIG.API_BASE) ? CONFIG.API_BASE : 'https://truthlens-1-ue36.onrender.com';
+const API = (typeof CONFIG !== 'undefined' && CONFIG.API_BASE) 
+    ? CONFIG.API_BASE 
+    : (window.location.hostname.includes('netlify.app') ? '/api' : 'https://truthlens-1-ue36.onrender.com');
 let lastData = null;
 
 // ─── DOM REFS ───────────────────────────────
