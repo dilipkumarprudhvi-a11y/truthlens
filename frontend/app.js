@@ -69,22 +69,28 @@ form.addEventListener('submit', async e => {
     e.preventDefault();
     const text = newsInput.value.trim();
     if (text.length < 20) { flashError('Please enter at least 20 characters to analyze.'); return; }
-    setLoading(true);
+    setLoading(true, 'Connecting to server…');
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            btnText.textContent = 'Waking up cloud server…';
+        }, 5000);
+
         const res = await fetch(`${API}/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
         });
-        if (!res.ok) throw new Error('Server returned ' + res.status);
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error('Server returned HTTP ' + res.status);
         const data = await res.json();
         lastData = { ...data, _inputText: text };
         renderAll(data, text);
         fetchHistory();
         fetchStats();
     } catch (err) {
-        console.error(err);
-        alert('❌ Cannot reach the backend.\n\nRun this in a terminal:\n\ncd "...\\fake-news-detector\\backend"\nuvicorn main:app --reload');
+        console.error('Fetch error:', err);
+        alert('❌ Unable to reach the backend service at:\n' + API + '\n\nNote: Render free services take ~20-30 seconds to wake up from sleep on the first request. Please wait a moment and try clicking Analyze again!');
     } finally {
         setLoading(false);
     }
@@ -97,10 +103,10 @@ function flashError(msg) {
     alert(msg);
 }
 
-function setLoading(on) {
+function setLoading(on, customText) {
     analyzeBtn.disabled = on;
     spinner.classList.toggle('hidden', !on);
-    btnText.textContent = on ? 'Analyzing…' : 'Analyze Content';
+    btnText.textContent = on ? (customText || 'Analyzing…') : 'Analyze Content';
     if (on) resultsPanel.classList.add('hidden');
 }
 
