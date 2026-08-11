@@ -208,9 +208,9 @@ backend_dir = os.path.dirname(os.path.abspath(__file__))
 
 @app.get("/")
 def read_root():
-    index_path = os.path.join(backend_dir, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
+    for p in [os.path.join(backend_dir, "index.html"), "index.html", "/app/index.html", "./index.html", "../index.html"]:
+        if os.path.exists(p):
+            return FileResponse(p, media_type="text/html")
     return {
         "status": "TruthLens API v2 — Running",
         "nlp_available": NLP_AVAILABLE,
