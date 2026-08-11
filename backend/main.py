@@ -212,12 +212,15 @@ if os.getcwd() not in sys.path:
     sys.path.insert(0, os.getcwd())
 
 try:
-    from html_content import INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS
+    from .html_content import INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS
 except Exception:
     try:
-        from backend.html_content import INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS
+        from html_content import INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS
     except Exception:
-        INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS = "", "", "", ""
+        try:
+            from backend.html_content import INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS
+        except Exception:
+            INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS = "", "", "", ""
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
