@@ -204,36 +204,15 @@ def extract_claims(text, doc):
 # ROUTES
 # ─────────────────────────────────────────────
 
-backend_dir = os.path.dirname(os.path.abspath(__file__))
-
-def load_asset(filename):
-    for candidate in [
-        os.path.join(backend_dir, filename),
-        filename,
-        os.path.join("/app", filename),
-        os.path.join(os.getcwd(), filename),
-        os.path.join(os.getcwd(), "backend", filename),
-    ]:
-        if os.path.exists(candidate):
-            try:
-                with open(candidate, "r", encoding="utf-8") as f:
-                    return f.read()
-            except Exception as e:
-                print(f"[Asset Read Error] {filename}: {e}")
-    return ""
-
-INDEX_HTML = load_asset("index.html")
-STYLE_CSS  = load_asset("style.css")
-APP_JS     = load_asset("app_v4.js") or load_asset("app.js")
-CONFIG_JS  = load_asset("config_v4.js") or load_asset("config.js")
+try:
+    from html_content import INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS
+except Exception:
+    INDEX_HTML, STYLE_CSS, APP_JS, CONFIG_JS = "", "", "", ""
 
 @app.get("/", response_class=HTMLResponse)
 def read_root():
     if INDEX_HTML:
         return HTMLResponse(content=INDEX_HTML)
-    for candidate in [os.path.join(backend_dir, "index.html"), "index.html", "/app/index.html"]:
-        if os.path.exists(candidate):
-            return FileResponse(candidate, media_type="text/html")
     return HTMLResponse(content="<!DOCTYPE html><html><body><h1>TruthLens App Running</h1></body></html>")
 
 @app.get("/style.css")
