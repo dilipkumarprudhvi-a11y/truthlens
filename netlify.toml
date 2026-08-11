@@ -1,6 +1,3 @@
-[build]
-  publish = "frontend"
-
 [[headers]]
   for = "/*"
   [headers.values]
