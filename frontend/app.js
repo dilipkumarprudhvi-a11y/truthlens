@@ -2,7 +2,7 @@
 // TruthLens v2 — app.js (Complete)
 // =============================================
 
-const API = (typeof CONFIG !== 'undefined' ? CONFIG.API_BASE : 'http://127.0.0.1:8000');
+const API = (typeof CONFIG !== 'undefined' && CONFIG.API_BASE) ? CONFIG.API_BASE : 'https://truthlens-1-ue36.onrender.com';
 let lastData = null;
 
 // ─── DOM REFS ───────────────────────────────
