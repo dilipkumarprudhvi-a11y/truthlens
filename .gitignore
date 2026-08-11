@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+env/
+
+# SQLite Database (generated at runtime)
+backend/history.db
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE / OS
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Docker
+.dockerignore

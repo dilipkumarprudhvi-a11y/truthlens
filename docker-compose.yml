@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+
+  # ── FastAPI Backend ──────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: truthlens-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - db-data:/app/history.db
+    restart: unless-stopped
+    environment:
+      - ENV=production
+
+  # ── Frontend Static Server ───────────────────────────────
+  frontend:
+    image: nginx:alpine
+    container_name: truthlens-frontend
+    ports:
+      - "5000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  db-data:
