@@ -111,28 +111,39 @@ function showToast(msg, type = 'info') {
 /* ═══ API HEALTH CHECK ══════════════════════════════════════ */
 
 async function checkApiHealth() {
-  setStatus('checking');
+  setStatus('checking', 'Connecting to backend…');
+  const probeUrls = [];
   for (const base of API_ENDPOINTS) {
+    probeUrls.push(`${base}/api/health`);
+    probeUrls.push(`${base}/health`);
+  }
+
+  for (const url of probeUrls) {
     try {
-      const r = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(8000) });
+      const r = await fetch(url, { signal: AbortSignal.timeout(12000) });
       if (r.ok) {
         const d = await r.json();
-        setStatus('ok', `Backend online · ${d.nlp_engine || 'NLP ready'}`);
-        return base;
+        const nlp = d.nlp_available ?? d.nlp ?? true;
+        setStatus('ok', `Backend online · ${nlp ? 'NLP active' : 'Engine online'}`);
+        return url;
       }
-    } catch { /* try next */ }
+    } catch { /* try next endpoint */ }
   }
-  setStatus('error', 'Backend offline — analysis unavailable');
+
+  setStatus('error', 'Backend offline — waking up server…');
+  // Retry after 5 seconds in case Render is spinning up from cold sleep
+  setTimeout(checkApiHealth, 5000);
   return null;
 }
 
 function setStatus(state, msg) {
   const pill = ui.apiStatusPill;
+  if (!pill) return;
   const dot = pill.querySelector('.dot');
   const text = ui.apiStatusText;
   pill.className = 'api-status-pill ' + (state === 'ok' ? 'ok' : state === 'error' ? 'error' : '');
-  dot.className = 'dot ' + (state === 'ok' ? 'dot-ok' : state === 'error' ? 'dot-error' : 'dot-checking');
-  text.textContent = msg || (state === 'checking' ? 'Connecting…' : state);
+  if (dot) dot.className = 'dot ' + (state === 'ok' ? 'dot-ok' : state === 'error' ? 'dot-error' : 'dot-checking');
+  if (text) text.textContent = msg || (state === 'checking' ? 'Connecting…' : state);
 }
 
 /* ═══ PROGRESS ══════════════════════════════════════════════ */
@@ -169,30 +180,38 @@ function stopProgress() {
 
 async function callAnalyzeApi(payload) {
   abortCtrl = new AbortController();
-  const timeout = setTimeout(() => abortCtrl.abort(), 55000);
+  const timeout = setTimeout(() => abortCtrl.abort(), 60000);
+
+  const candidateUrls = [];
+  for (const base of API_ENDPOINTS) {
+    candidateUrls.push(`${base}/api/analyze`);
+    candidateUrls.push(`${base}/analyze`);
+  }
 
   let lastErr;
-  for (const base of API_ENDPOINTS) {
+  for (const url of candidateUrls) {
     try {
-      const r = await fetch(`${base}/api/analyze`, {
+      const r = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: abortCtrl.signal,
       });
       clearTimeout(timeout);
-      if (!r.ok) {
+      if (r.ok) {
+        setStatus('ok', 'Backend online · Active');
+        return await r.json();
+      } else if (r.status !== 404 && r.status !== 405) {
         const err = await r.json().catch(() => ({ detail: r.statusText }));
         throw new Error(err.detail || `HTTP ${r.status}`);
       }
-      return await r.json();
     } catch (e) {
       lastErr = e;
       if (e.name === 'AbortError') break;
     }
   }
   clearTimeout(timeout);
-  throw lastErr || new Error('All endpoints failed');
+  throw lastErr || new Error('All endpoints unreachable');
 }
 
 /* ═══ MAIN ANALYZE FLOW ═════════════════════════════════════ */
@@ -476,29 +495,37 @@ async function fetchAndAnalyzeUrl(url) {
   setBtnLoading(btn, true);
   startProgress();
 
+  const candidateUrls = [];
+  for (const base of API_ENDPOINTS) {
+    candidateUrls.push(`${base}/api/url/extract`);
+    candidateUrls.push(`${base}/url/extract`);
+  }
+
   try {
-    let base;
-    for (const ep of API_ENDPOINTS) {
+    for (const ep of candidateUrls) {
       try {
-        const r = await fetch(`${ep}/api/url/extract`, {
+        const r = await fetch(ep, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url }),
-          signal: AbortSignal.timeout(25000),
+          signal: AbortSignal.timeout(30000),
         });
-        if (r.ok) { const d = await r.json(); base = ep; if (d.text) {
-          stopProgress();
-          setBtnLoading(btn, false);
-          ui.textInput.value = d.text.slice(0, 25000);
-          switchTab('text');
-          updateCounts();
-          showToast(`Article extracted: ${d.length?.toLocaleString() || '?'} chars`, 'success');
-          await analyze(d.text.slice(0, 25000));
-          return;
-        } }
+        if (r.ok) {
+          const d = await r.json();
+          if (d.text) {
+            stopProgress();
+            setBtnLoading(btn, false);
+            ui.textInput.value = d.text.slice(0, 25000);
+            switchTab('text');
+            updateCounts();
+            showToast(`Article extracted: ${d.length?.toLocaleString() || d.text.length} chars`, 'success');
+            await analyze(d.text.slice(0, 25000));
+            return;
+          }
+        }
       } catch { /* try next */ }
     }
-    throw new Error('Could not fetch article');
+    throw new Error('Could not fetch article from specified URL');
   } catch (e) {
     stopProgress();
     showToast(`URL fetch failed: ${e.message}`, 'error');
@@ -514,10 +541,16 @@ async function ocrAndAnalyze(file) {
   form.append('image', file);
 
   startProgress();
+  const candidateUrls = [];
+  for (const base of API_ENDPOINTS) {
+    candidateUrls.push(`${base}/api/ocr/extract`);
+    candidateUrls.push(`${base}/ocr/extract`);
+  }
+
   try {
-    for (const ep of API_ENDPOINTS) {
+    for (const ep of candidateUrls) {
       try {
-        const r = await fetch(`${ep}/api/ocr/extract`, { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
+        const r = await fetch(ep, { method: 'POST', body: form, signal: AbortSignal.timeout(35000) });
         if (r.ok) {
           const d = await r.json();
           stopProgress();
@@ -527,12 +560,12 @@ async function ocrAndAnalyze(file) {
             updateCounts();
             showToast(`OCR complete — ${d.text.length} chars extracted`, 'success');
             await analyze(d.text);
-          } else { showToast('OCR returned no text', 'error'); }
-          return;
+            return;
+          }
         }
       } catch { /* try next */ }
     }
-    throw new Error('OCR service unreachable');
+    throw new Error('OCR service unreachable or returned empty text');
   } catch (e) {
     stopProgress();
     showToast(`OCR failed: ${e.message}`, 'error');
