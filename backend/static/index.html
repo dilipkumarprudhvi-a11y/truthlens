@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TruthLens AI — Advanced Fake News & Credibility Intelligence</title>
+    <title>TruthLens AI — Evidence-Grounded Credibility & Misinformation Intelligence</title>
     
     <!-- Meta tags and SEO -->
     <meta name="google-site-verification" content="googleccc5aae6bf226ee5" />
     <link rel="canonical" href="https://dilipkumarprudhvi-a11y.github.io/truthlens/">
-    <meta name="description" content="AI-powered Forensic Truth & Misinformation Analysis Engine. Instant multi-vector assessment of credibility, bias, clickbait, sentiment, virality, and factual claims.">
-    <meta name="keywords" content="fake news detector, AI fact checker, media bias detector, clickbait detector, misinformation analysis">
+    <meta name="description" content="Evidence-first AI platform for misinformation detection, factual claim extraction, linguistic risk scoring, and verified source corroboration.">
+    <meta name="keywords" content="fact checker, claim extraction, evidence retrieval, misinformation detection, media bias analyzer, clickbait detector">
     <meta name="author" content="TruthLens Intelligence">
     
     <!-- Open Graph -->
-    <meta property="og:title" content="TruthLens AI — Advanced Fake News & Credibility Intelligence">
-    <meta property="og:description" content="Instant multi-vector forensic assessment of credibility, bias, clickbait, and factual claims.">
+    <meta property="og:title" content="TruthLens AI — Evidence-Grounded Credibility & Misinformation Intelligence">
+    <meta property="og:description" content="Scientific claim extraction, linguistic risk scoring, and real-time evidence corroboration.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://dilipkumarprudhvi-a11y.github.io/truthlens/">
     
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="TruthLens AI — Fake News & Credibility Intelligence">
-    <meta name="twitter:description" content="Instant forensic assessment of credibility, bias, clickbait, and factual claims.">
+    <meta name="twitter:title" content="TruthLens AI — Evidence-Grounded Fact & Credibility Analysis">
+    <meta name="twitter:description" content="Extract claims, retrieve authoritative evidence, and evaluate linguistic risk vectors.">
     
     <!-- JSON-LD WebApplication schema -->
     <script type="application/ld+json">
@@ -29,12 +29,14 @@
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "TruthLens AI",
-      "description": "Next-Gen AI Misinformation & Forensic Credibility Analysis Engine",
+      "description": "Evidence-Grounded Factual Claim Verification & Linguistic Risk Intelligence",
       "applicationCategory": "UtilityApplication",
       "operatingSystem": "All",
+      "url": "https://dilipkumarprudhvi-a11y.github.io/truthlens/",
       "offers": {
         "@type": "Offer",
-        "price": "0"
+        "price": "0",
+        "priceCurrency": "USD"
       }
     }
     </script>
@@ -49,26 +51,26 @@
     <script src="config.js"></script>
 </head>
 <body class="dark-theme">
-    <!-- Background Animated Mesh Glow -->
-    <div class="ambient-glow glow-1"></div>
-    <div class="ambient-glow glow-2"></div>
-    <div class="ambient-glow glow-3"></div>
+    <!-- Ambient Background Glows -->
+    <div class="ambient-glow glow-1" aria-hidden="true"></div>
+    <div class="ambient-glow glow-2" aria-hidden="true"></div>
+    <div class="ambient-glow glow-3" aria-hidden="true"></div>
 
     <div class="app-layout">
-        <!-- Collapsible / Floating History Drawer -->
-        <aside id="history-sidebar" class="sidebar">
+        <!-- Collapsible Audit History Drawer -->
+        <aside id="history-sidebar" class="sidebar" aria-label="Analysis History Sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-title-group">
                     <div class="icon-orb pulse-green">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
                     <div>
                         <h2>Audit History</h2>
                         <span class="sidebar-sub">Logged Inferences</span>
                     </div>
                 </div>
-                <button id="toggle-sidebar-btn" class="icon-button" title="Close Sidebar">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <button id="toggle-sidebar-btn" class="icon-button" title="Close Sidebar" aria-label="Close sidebar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
             </div>
             
@@ -79,15 +81,15 @@
                     <span id="stat-total" class="stat-value">0</span>
                 </div>
                 <div class="stat-card real">
-                    <span class="stat-label">Verified Real</span>
+                    <span class="stat-label">Supported / Real</span>
                     <span id="stat-real" class="stat-value">0</span>
                 </div>
                 <div class="stat-card sus">
-                    <span class="stat-label">Suspicious</span>
+                    <span class="stat-label">Mixed / Unverified</span>
                     <span id="stat-sus" class="stat-value">0</span>
                 </div>
                 <div class="stat-card fake">
-                    <span class="stat-label">Flagged Fake</span>
+                    <span class="stat-label">Contradicted</span>
                     <span id="stat-fake" class="stat-value">0</span>
                 </div>
             </div>
@@ -97,14 +99,14 @@
                 <ul id="history-list" class="history-list">
                     <div class="history-empty">
                         <div class="empty-icon">📂</div>
-                        <p>No previous scans yet.<br>Analyze an article to start logging history.</p>
+                        <p>No previous scans logged yet.<br>Analyze an article to start logging history.</p>
                     </div>
                 </ul>
             </div>
             
             <div class="sidebar-footer">
                 <button id="clear-history-btn" class="btn-secondary danger full-width hidden">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18m-2 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                     Clear History
                 </button>
             </div>
@@ -115,13 +117,13 @@
             <!-- Glass Navbar Header -->
             <header class="app-header">
                 <div class="brand-group">
-                    <button id="open-sidebar-btn" class="icon-button" title="View History & Stats">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-                        <span id="history-badge-count" class="badge-dot"></span>
+                    <button id="open-sidebar-btn" class="icon-button" title="View History & Stats" aria-label="Open history sidebar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+                        <span id="history-badge-count" class="badge-dot" style="display:none;"></span>
                     </button>
                     <div class="brand-logo">
                         <div class="logo-icon-box">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <circle cx="12" cy="12" r="10"/>
                                 <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
                                 <path d="M2 12h20"/>
@@ -129,7 +131,7 @@
                         </div>
                         <div class="brand-text">
                             <h1>Truth<span>Lens</span></h1>
-                            <span class="brand-tag">v3.2 AI Intelligence</span>
+                            <span class="brand-tag">v3.0 Evidence Intelligence</span>
                         </div>
                     </div>
                 </div>
@@ -137,17 +139,21 @@
                 <div class="header-center">
                     <div class="status-pill">
                         <span class="status-pulse-dot"></span>
-                        <span class="status-text">12 Forensic Models Active</span>
+                        <span class="status-text">Evidence-Grounded Pipeline Active</span>
                     </div>
                 </div>
 
                 <div class="header-actions">
+                    <button id="how-it-works-btn" class="btn-ghost-pill" title="Learn how TruthLens works">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+                        <span>Methodology</span>
+                    </button>
                     <button id="load-sample-btn" class="btn-ghost-pill" title="Load sample news for instant test">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                         <span>Quick Demo</span>
                     </button>
-                    <a href="https://github.com/dilipkumarprudhvi-a11y/truthlens" target="_blank" class="icon-button" title="View Source on GitHub">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    <a href="https://github.com/dilipkumarprudhvi-a11y/truthlens" target="_blank" class="icon-button" title="View Source on GitHub" aria-label="GitHub Repository">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
                     </a>
                 </div>
             </header>
@@ -156,15 +162,15 @@
                 <!-- Hero Intro Banner -->
                 <section class="hero-section">
                     <div class="hero-badge-pill">
-                        <span class="pill-sparkle">✨</span> Deep Linguistic & Factual Verification
+                        <span class="pill-sparkle">🔬</span> Evidence-First Fact & Credibility Engine
                     </div>
-                    <h2 class="hero-headline">Verify Any News Article with <span class="gradient-text">Forensic Precision</span></h2>
-                    <p class="hero-subtext">Scan text, social media statements, or web articles to detect deception patterns, clickbait triggers, political bias, and emotional manipulation in seconds.</p>
+                    <h2 class="hero-headline">Verify Any News Article with <span class="gradient-text">Evidence & Provenance</span></h2>
+                    <p class="hero-subtext">Extract testable factual claims, retrieve corroborating wire evidence, and evaluate linguistic risk vectors with deterministic precision.</p>
                 </section>
 
                 <!-- Input Console -->
-                <section class="input-card">
-                    <!-- Preset Pills -->
+                <section class="input-card" aria-label="Analysis Input Console">
+                    <!-- Preset Sample Chips -->
                     <div class="presets-row">
                         <span class="presets-title">Quick Try:</span>
                         <div class="preset-chips">
@@ -175,22 +181,24 @@
                         </div>
                     </div>
 
-                    <div class="console-tabs">
-                        <button id="tab-text" class="tab-btn active">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-                            Text Input
+                    <!-- Input Tabs -->
+                    <div class="console-tabs" role="tablist">
+                        <button id="tab-text" class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-text-content">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+                            Direct Text Input
                         </button>
-                        <button id="tab-media" class="tab-btn">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                            URL / Media Scan
+                        <button id="tab-media" class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-media-content">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            URL / Image Ingestion
                         </button>
                     </div>
 
-                    <!-- Text Mode -->
-                    <div id="tab-text-content" class="tab-content active">
+                    <!-- Mode 1: Direct Text -->
+                    <div id="tab-text-content" class="tab-content active" role="tabpanel">
                         <form id="analyze-form">
                             <div class="textarea-container">
-                                <textarea id="news-input" placeholder="Paste article text, headline, transcript, or social post here (minimum 20 characters)..." rows="6"></textarea>
+                                <label for="news-input" class="sr-only">News Article or Statement</label>
+                                <textarea id="news-input" placeholder="Paste article text, headline, transcript, or social post here (minimum 10 characters)..." rows="6"></textarea>
                                 <div class="textarea-glow-border"></div>
                             </div>
                             
@@ -207,7 +215,7 @@
                                     <button type="submit" id="analyze-btn" class="btn-hero-analyze">
                                         <div class="btn-shine"></div>
                                         <span class="btn-icon">⚡</span>
-                                        <span class="btn-text">Run Forensic Analysis</span>
+                                        <span class="btn-text">Run Evidence Analysis</span>
                                         <div id="loading-spinner" class="spinner hidden"></div>
                                     </button>
                                 </div>
@@ -215,67 +223,68 @@
                         </form>
                     </div>
 
-                    <!-- URL / Media Mode -->
-                    <div id="tab-media-content" class="tab-content hidden">
+                    <!-- Mode 2: URL & Image Upload -->
+                    <div id="tab-media-content" class="tab-content hidden" role="tabpanel">
                         <div class="media-input-wrapper">
                             <div class="url-input-group">
                                 <div class="input-with-icon">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                    <label for="url-input" class="sr-only">Article Web URL</label>
                                     <input type="url" id="url-input" placeholder="https://example.com/news-article-url...">
                                 </div>
-                                <button id="fetch-url-btn" class="btn-secondary">
+                                <button id="fetch-url-btn" type="button" class="btn-secondary">
                                     Fetch & Analyze
                                 </button>
                             </div>
 
                             <div class="or-divider">
-                                <span>OR DRAG & DROP SCREENSHOT</span>
+                                <span>OR DRAG & DROP ARTICLE SCREENSHOT</span>
                             </div>
 
                             <div id="media-drop-zone" class="media-drop-zone">
                                 <div class="drop-zone-content">
                                     <div class="drop-icon">🖼️</div>
-                                    <p class="drop-main-text">Drop news screenshot or article photo here</p>
-                                    <span class="drop-sub-text">PNG, JPG, WEBP up to 10MB</span>
+                                    <p class="drop-main-text">Drop news screenshot or article photo here for OCR</p>
+                                    <span class="drop-sub-text">PNG, JPG, WEBP up to 5MB</span>
                                 </div>
-                                <input type="file" id="media-file-input" accept="image/*" hidden>
+                                <input type="file" id="media-file-input" accept="image/png,image/jpeg,image/webp" hidden>
                             </div>
 
                             <div id="media-preview" class="media-preview hidden">
-                                <img id="preview-img" src="" alt="OCR Preview">
+                                <img id="preview-img" src="" alt="Uploaded Article Preview">
                                 <div class="preview-actions">
-                                    <span class="preview-tag">Image Ready for OCR</span>
-                                    <button id="remove-media-btn" class="btn-icon danger" title="Remove image">×</button>
+                                    <span id="ocr-status-tag" class="preview-tag">Image Ready for Processing</span>
+                                    <button id="remove-media-btn" type="button" class="btn-icon danger" title="Remove image">×</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- Processing Stepper (Visible while loading) -->
-                <div id="processing-stepper" class="stepper-card hidden">
+                <!-- Processing Stepper Animation -->
+                <div id="processing-stepper" class="stepper-card hidden" aria-live="polite">
                     <div class="stepper-header">
                         <div class="stepper-spinner"></div>
-                        <h4 id="stepper-headline">Deconstructing Linguistic Matrix...</h4>
+                        <h4 id="stepper-headline">Deconstructing Linguistic Matrix & Extracting Claims...</h4>
                     </div>
                     <div class="stepper-progress-bar">
                         <div id="stepper-fill" class="stepper-fill"></div>
                     </div>
                     <div class="stepper-steps">
-                        <span id="step-1" class="step active">1. Syntax Tokenization</span>
-                        <span id="step-2" class="step">2. Sentiment & Fear Vector</span>
-                        <span id="step-3" class="step">3. Political Bias Mapping</span>
-                        <span id="step-4" class="step">4. Credibility Rating</span>
+                        <span id="step-1" class="step active">1. Declarative Claim Extraction</span>
+                        <span id="step-2" class="step">2. Multi-Source Evidence Query</span>
+                        <span id="step-3" class="step">3. Claim-Evidence Semantic NLI</span>
+                        <span id="step-4" class="step">4. Deterministic Scoring Synthesis</span>
                     </div>
                 </div>
 
-                <!-- Results Dashboard (Hidden until analyzed) -->
-                <section id="results-panel" class="results-dashboard hidden">
-                    <!-- Results Hero Banner / Verdict -->
+                <!-- Results Dashboard -->
+                <section id="results-panel" class="results-dashboard hidden" aria-live="polite">
+                    <!-- Scientific Verdict Banner -->
                     <div id="verdict-banner" class="verdict-banner">
                         <div class="verdict-left">
                             <div class="gauge-container">
-                                <svg class="gauge-svg" width="140" height="140" viewBox="0 0 100 100">
+                                <svg class="gauge-svg" width="140" height="140" viewBox="0 0 100 100" aria-hidden="true">
                                     <circle class="gauge-track" cx="50" cy="50" r="42"></circle>
                                     <circle id="score-ring" class="gauge-fill" cx="50" cy="50" r="42"></circle>
                                 </svg>
@@ -288,71 +297,89 @@
 
                             <div class="verdict-info">
                                 <div class="verdict-badge-row">
-                                    <span id="classification-badge" class="verdict-pill">UNKNOWN</span>
+                                    <span id="primary-verdict-badge" class="verdict-pill">UNVERIFIED</span>
+                                    <span id="classification-badge" class="verdict-subpill">LEGACY: UNKNOWN</span>
                                     <span id="sentiment-tag" class="verdict-subpill">Neutral Tone</span>
                                 </div>
-                                <h3 id="verdict-title" class="verdict-headline">Forensic Verification Complete</h3>
+                                <h3 id="verdict-title" class="verdict-headline">Scientific Verification Assessment</h3>
                                 <p id="classification-message" class="verdict-description">Awaiting analysis output...</p>
                             </div>
                         </div>
 
                         <div class="verdict-actions">
                             <button id="share-btn" class="btn-glass" title="Copy summary to clipboard">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 17l4 4 4-4m-4-5v9M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"/></svg>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 17l4 4 4-4m-4-5v9M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"/></svg>
                                 <span>Share Summary</span>
                             </button>
                             <button id="download-report-btn" class="btn-glass" title="Export complete audit JSON">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                                 <span>Export Report</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Quick Metric HUD Cards -->
+                    <!-- Quick Metric HUD -->
                     <div class="quick-hud-grid">
                         <div class="hud-card">
                             <div class="hud-icon blue">📝</div>
                             <div class="hud-data">
-                                <span class="hud-label">Word Count</span>
+                                <span class="hud-label">Words Analyzed</span>
                                 <span id="word-count" class="hud-val">0</span>
                             </div>
                         </div>
                         <div class="hud-card">
                             <div class="hud-icon red">⚠️</div>
                             <div class="hud-data">
-                                <span class="hud-label">Deception / Fake Risk</span>
+                                <span class="hud-label">Deception / Risk</span>
                                 <span id="fake-prob" class="hud-val">0%</span>
                             </div>
                         </div>
                         <div class="hud-card">
                             <div class="hud-icon green">🎯</div>
                             <div class="hud-data">
-                                <span class="hud-label">Algorithm Confidence</span>
+                                <span class="hud-label">Evidence Confidence</span>
                                 <span id="confidence-metric" class="hud-val">0%</span>
                             </div>
                         </div>
                         <div class="hud-card">
-                            <div class="hud-icon purple">🔍</div>
+                            <div class="hud-icon purple">📑</div>
                             <div class="hud-data">
-                                <span class="hud-label">Named Entities</span>
-                                <span id="entity-count" class="hud-val">0</span>
+                                <span class="hud-label">Claims Extracted</span>
+                                <span id="claims-count-val" class="hud-val">0</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Detailed Multi-Model Grid -->
+                    <!-- SECTION 1: Factual Claim Verification & Evidence Matrix (Full Width) -->
+                    <div class="section-title-strip">
+                        <h4>🔍 Factual Claims & Corroborating Evidence Matrix</h4>
+                        <span class="strip-badge">Evidence-Grounded Citations</span>
+                    </div>
+
+                    <div class="claims-evidence-container">
+                        <div id="claim-cards-stack" class="claim-cards-stack">
+                            <!-- Populated dynamically with real evidence citations -->
+                        </div>
+                    </div>
+
+                    <!-- SECTION 2: Linguistic Risk Signals (Strictly Separated) -->
+                    <div class="section-title-strip mt-3">
+                        <h4>📊 Linguistic & Rhetorical Risk Signals</h4>
+                        <span class="strip-badge subtle">Style Analysis (Not Proof of Truth)</span>
+                    </div>
+
                     <div class="dashboard-grid">
-                        <!-- Module 1: Sentiment & Emotional Triggers -->
+                        <!-- Module: Sentiment & Emotional Vectors -->
                         <div class="module-card">
                             <div class="card-head">
                                 <div class="head-left">
                                     <span class="card-icon">🎭</span>
-                                    <h4>Sentiment & Emotional Drivers</h4>
+                                    <h4>Sentiment & Fear Vectors</h4>
                                 </div>
                                 <span id="sentiment-tone-badge" class="badge-mini blue">Neutral</span>
                             </div>
                             <div class="card-body">
-                                <p class="metric-desc">Evaluation of linguistic mood, alarmist bias, and emotional polarization.</p>
+                                <p class="metric-desc">Evaluation of linguistic mood, alarmist vocabulary, and emotional polarization.</p>
                                 
                                 <div class="meter-bar-list">
                                     <div class="meter-item">
@@ -380,17 +407,17 @@
                             </div>
                         </div>
 
-                        <!-- Module 2: Political Bias Spectrum -->
+                        <!-- Module: Political Bias Spectrum -->
                         <div class="module-card">
                             <div class="card-head">
                                 <div class="head-left">
                                     <span class="card-icon">⚖️</span>
-                                    <h4>Political Bias & Polarization</h4>
+                                    <h4>Political Stance & Polarization</h4>
                                 </div>
                                 <span id="bias-leaning-badge" class="badge-mini purple">Center</span>
                             </div>
                             <div class="card-body">
-                                <p class="metric-desc">Partisan ideological positioning based on keyword and narrative scoring.</p>
+                                <p class="metric-desc">Partisan ideological balance scoring based on deterministic keyword triggers.</p>
                                 
                                 <div class="bias-spectrum-box">
                                     <div class="spectrum-labels">
@@ -412,7 +439,7 @@
                             </div>
                         </div>
 
-                        <!-- Module 3: Clickbait & Sensationalism Scanner -->
+                        <!-- Module: Clickbait & Sensationalism -->
                         <div class="module-card">
                             <div class="card-head">
                                 <div class="head-left">
@@ -443,7 +470,7 @@
                             </div>
                         </div>
 
-                        <!-- Module 4: Virality & Social Velocity Potential -->
+                        <!-- Module: Virality Potential -->
                         <div class="module-card">
                             <div class="card-head">
                                 <div class="head-left">
@@ -459,7 +486,7 @@
                                         <span class="score-max">/100</span>
                                     </div>
                                     <div class="score-sub-meta">
-                                        <p class="micro-stats">Propagation algorithm rating</p>
+                                        <p class="micro-stats">Algorithmic velocity estimate</p>
                                     </div>
                                 </div>
 
@@ -471,7 +498,7 @@
                             </div>
                         </div>
 
-                        <!-- Module 5: Readability & Complexity -->
+                        <!-- Module: Readability Complexity -->
                         <div class="module-card">
                             <div class="card-head">
                                 <div class="head-left">
@@ -494,7 +521,7 @@
                             </div>
                         </div>
 
-                        <!-- Module 6: Writing Style & Formality -->
+                        <!-- Module: Writing Style HUD -->
                         <div class="module-card">
                             <div class="card-head">
                                 <div class="head-left">
@@ -510,12 +537,12 @@
                             </div>
                         </div>
 
-                        <!-- Module 7: NLP Evidence & Entities (Full Width) -->
+                        <!-- Module: Named Entities (Full Width) -->
                         <div class="module-card full-width">
                             <div class="card-head">
                                 <div class="head-left">
                                     <span class="card-icon">🏷️</span>
-                                    <h4>Named Entities & Evidence Vectors</h4>
+                                    <h4>Named Entities Extracted (NER)</h4>
                                 </div>
                                 <div class="legend-pills">
                                     <span class="legend-chip pink"><span class="dot"></span>PERSON</span>
@@ -528,42 +555,15 @@
                                 <div id="entity-tags" class="entity-chips-grid">
                                     <span class="empty-state">No named entities detected</span>
                                 </div>
-                                
-                                <div class="context-cross-check mt-3">
-                                    <div class="context-title-bar">
-                                        <h5>🔍 Cross-Verification & Public Record Synthesis</h5>
-                                    </div>
-                                    <div id="context-box" class="context-narrative">
-                                        Cross-reference check complete.
-                                    </div>
-                                    <div id="context-sources" class="source-indicators-row">
-                                        <!-- Populated by JS -->
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
-                        <!-- Module 8: Extracted Factual Claims (Full Width) -->
-                        <div class="module-card full-width">
-                            <div class="card-head">
-                                <div class="head-left">
-                                    <span class="card-icon">📑</span>
-                                    <h4>Extracted Factual & Logical Claims</h4>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div id="claims-list" class="claims-stack">
-                                    <span class="empty-state">No factual assertions identified</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Module 9: Flagged Suspicious Keywords (Full Width) -->
+                        <!-- Module: Flagged Deception Keywords (Full Width) -->
                         <div class="module-card full-width">
                             <div class="card-head">
                                 <div class="head-left">
                                     <span class="card-icon">⚠️</span>
-                                    <h4>Flagged Deception & Sensational Keywords</h4>
+                                    <h4>Flagged Rhetorical Deception Keywords</h4>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -573,15 +573,15 @@
                             </div>
                         </div>
 
-                        <!-- Module 10: Raw Forensic JSON Report (Full Width) -->
+                        <!-- Module: Diagnostic JSON Payload (Full Width) -->
                         <div class="module-card full-width report-container">
                             <div class="card-head">
                                 <div class="head-left">
                                     <span class="card-icon">💻</span>
-                                    <h4>Raw Diagnostic JSON Payload</h4>
+                                    <h4>Raw Diagnostic JSON Audit Report</h4>
                                 </div>
                                 <button id="download-report-btn2" class="btn-secondary small">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                                     Download JSON
                                 </button>
                             </div>
@@ -593,23 +593,59 @@
                 </section>
             </main>
 
+            <!-- Methodology & Limitations Modal -->
+            <div id="methodology-modal" class="modal-backdrop hidden" aria-modal="true" role="dialog">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <div class="modal-title-group">
+                            <span class="modal-icon">🔬</span>
+                            <h3>TruthLens Verification Methodology</h3>
+                        </div>
+                        <button id="close-modal-btn" class="icon-button" aria-label="Close modal">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <h4>1. Target Verdict Model</h4>
+                        <p>TruthLens evaluates factual claims into four scientific categories:</p>
+                        <ul>
+                            <li><strong class="text-green">SUPPORTED</strong>: Corroborated by independent, authoritative records.</li>
+                            <li><strong class="text-red">CONTRADICTED</strong>: Disputed or refuted by documented fact checks and authoritative reporting.</li>
+                            <li><strong class="text-amber">MIXED</strong>: Content combines accurate data with unsubstantiated or disputed claims.</li>
+                            <li><strong class="text-purple">UNVERIFIED</strong>: Insufficient independent evidence retrieved across knowledge indices.</li>
+                        </ul>
+                        
+                        <h4>2. Separation of Linguistic Signals</h4>
+                        <p>Linguistic signals (clickbait index, sentiment, readability) measure rhetorical style. High clickbait or negative emotion is an alert signal, but does <em>not</em> prove an assertion is factually false.</p>
+
+                        <h4>3. Real Evidence Policy</h4>
+                        <p>TruthLens never fabricates citations. Evidence is only displayed when retrieved from real, queried providers.</p>
+
+                        <h4>4. Limitations Disclaimer</h4>
+                        <p class="disclaimer-callout">Automated analysis assists critical thinking and digital literacy. It is not an absolute arbiter of truth. Always consult primary documentation.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Footer -->
             <footer class="app-footer">
                 <div class="footer-content">
-                    <p>TruthLens AI Forensic Intelligence • Built for journalism, research & misinformation mitigation.</p>
+                    <p>TruthLens AI Intelligence Platform • Evidence-grounded factual verification & media literacy research.</p>
                     <div class="footer-links">
-                        <a href="https://dilipkumarprudhvi-a11y.github.io/truthlens/" target="_blank">Live Portal</a>
+                        <a href="how-it-works.html">How It Works</a>
                         <span>•</span>
-                        <a href="https://truthlens-1-ue36.onrender.com/health" target="_blank">API Health</a>
+                        <a href="faq.html">FAQ</a>
                         <span>•</span>
-                        <a href="https://github.com/dilipkumarprudhvi-a11y/truthlens" target="_blank">GitHub Repository</a>
+                        <a href="privacy.html">Privacy Policy</a>
+                        <span>•</span>
+                        <a href="terms.html">Terms of Service</a>
+                        <span>•</span>
+                        <a href="https://github.com/dilipkumarprudhvi-a11y/truthlens" target="_blank">GitHub</a>
                     </div>
                 </div>
             </footer>
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Main JavaScript Application Logic -->
     <script src="app.js"></script>
 </body>
 </html>

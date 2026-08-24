@@ -1,5 +1,5 @@
 // =========================================================
-// TruthLens AI — Advanced Forensic App Logic & Animations
+// TruthLens AI — Evidence-Grounded Verification App Logic
 // =========================================================
 
 const API = (typeof CONFIG !== 'undefined' && CONFIG.API_BASE)
@@ -31,12 +31,17 @@ const historyListEl      = document.getElementById('history-list');
 const clearHistoryBtn    = document.getElementById('clear-history-btn');
 const historyBadgeCount  = document.getElementById('history-badge-count');
 
+// Modal Elements
+const howItWorksBtn      = document.getElementById('how-it-works-btn');
+const methodologyModal   = document.getElementById('methodology-modal');
+const closeModalBtn      = document.getElementById('close-modal-btn');
+
 // Sample Presets Dictionary
 const SAMPLE_PRESETS = {
-    fake: "BREAKING: Secret leaked documents reveal that global governments have been covertly hiding a miracle energy cure! Anonymous whistleblowers claim the mainstream media is completely censoring the shocking truth. Click here before this video is banned forever by the deep state!",
-    real: "Scientists at the International Renewable Energy Agency published peer-reviewed findings in Nature demonstrating a 32% efficiency improvement in perovskite tandem solar cells. The team collaborated across twelve independent laboratories to verify data reproducibility under standard atmospheric conditions.",
-    clickbait: "You WON'T BELIEVE what this celebrity did at the gala! Doctors are STUNNED by this ONE simple trick that destroys aging instantly! What happened next will leave you completely SPEECHLESS! Top 10 secrets they never told you!",
-    bias: "Radical partisan ideologues in Congress are actively executing a treasonous agenda to systematically destroy the constitutional fabric of our nation. Every patriotic citizen must rise up and completely reject this corrupt legislation immediately."
+    fake: "BREAKING: Secret documents leak revealing that global health authorities and governments engineered a covert energy conspiracy. Anonymous whistleblowers claim mainstream media is completely censoring this shocking truth!",
+    real: "Scientists at the International Renewable Energy Agency published peer-reviewed findings in Nature demonstrating a 32 percent efficiency improvement in perovskite solar cells across twelve independent laboratory trials.",
+    clickbait: "You WON'T BELIEVE what this celebrity did at the private gala! Doctors are STUNNED by this ONE simple trick that eliminates aging instantly! What happened next will leave you completely SPEECHLESS!",
+    bias: "Radical partisan ideologues in Congress are aggressively pushing a corrupt, socialist legislative agenda designed to systematically dismantle constitutional liberties across our nation."
 };
 
 // ─── LIVE COUNTERS & INPUT METRICS ────────────────────────
@@ -48,7 +53,6 @@ function updateInputCounters() {
     charCountEl.textContent = len;
     wordCountLive.textContent = words;
     
-    // Average reading speed: 200 words/min = ~3.3 words/sec
     const readingSecs = Math.max(1, Math.round(words / 3.3));
     readTimeEl.textContent = words > 0 ? (readingSecs < 60 ? `${readingSecs}s` : `${Math.round(readingSecs/60)}m`) : '0s';
 }
@@ -93,7 +97,9 @@ const tabMediaContent = document.getElementById('tab-media-content');
 if (tabText && tabMedia) {
     tabText.addEventListener('click', () => {
         tabText.classList.add('active');
+        tabText.setAttribute('aria-selected', 'true');
         tabMedia.classList.remove('active');
+        tabMedia.setAttribute('aria-selected', 'false');
         tabTextContent.classList.add('active');
         tabTextContent.classList.remove('hidden');
         tabMediaContent.classList.remove('active');
@@ -102,7 +108,9 @@ if (tabText && tabMedia) {
 
     tabMedia.addEventListener('click', () => {
         tabMedia.classList.add('active');
+        tabMedia.setAttribute('aria-selected', 'true');
         tabText.classList.remove('active');
+        tabText.setAttribute('aria-selected', 'false');
         tabMediaContent.classList.add('active');
         tabMediaContent.classList.remove('hidden');
         tabTextContent.classList.remove('active');
@@ -110,14 +118,64 @@ if (tabText && tabMedia) {
     });
 }
 
-// ─── MEDIA & OCR SIMULATION ───────────────────────────────
+// ─── URL INGESTION (SERVER-SIDE SSRF GUARDED) ─────────────
+const fetchUrlBtn = document.getElementById('fetch-url-btn');
+const urlInput = document.getElementById('url-input');
+
+if (fetchUrlBtn) {
+    fetchUrlBtn.addEventListener('click', async () => {
+        const url = urlInput.value.trim();
+        if (!url) { alert('Please enter a valid web article URL.'); return; }
+        
+        fetchUrlBtn.disabled = true;
+        fetchUrlBtn.textContent = 'Extracting article...';
+
+        const endpoints = [
+            API,
+            'https://truthlens-1-ue36.onrender.com',
+            'http://127.0.0.1:8000',
+            window.location.origin
+        ];
+        const unique = [...new Set(endpoints.filter(Boolean))];
+
+        let extractedData = null;
+        for (const base of unique) {
+            try {
+                const res = await fetch(`${base}/api/url/extract`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                if (res.ok) {
+                    extractedData = await res.json();
+                    break;
+                }
+            } catch (err) {
+                // try fallback
+            }
+        }
+
+        fetchUrlBtn.disabled = false;
+        fetchUrlBtn.textContent = 'Fetch & Analyze';
+
+        if (extractedData && extractedData.success && extractedData.text) {
+            newsInput.value = (extractedData.title ? `[${extractedData.title}]\n\n` : '') + extractedData.text;
+            updateInputCounters();
+            tabText.click();
+            form.dispatchEvent(new Event('submit'));
+        } else {
+            alert(extractedData?.error || 'Unable to extract web content from target URL. Please paste text directly.');
+        }
+    });
+}
+
+// ─── IMAGE & OCR INGESTION ────────────────────────────────
 const dropZone = document.getElementById('media-drop-zone');
 const fileInput = document.getElementById('media-file-input');
 const mediaPreview = document.getElementById('media-preview');
 const previewImg = document.getElementById('preview-img');
 const removeMediaBtn = document.getElementById('remove-media-btn');
-const fetchUrlBtn = document.getElementById('fetch-url-btn');
-const urlInput = document.getElementById('url-input');
+const ocrStatusTag = document.getElementById('ocr-status-tag');
 
 if (dropZone && fileInput) {
     dropZone.addEventListener('click', () => fileInput.click());
@@ -132,30 +190,66 @@ if (dropZone && fileInput) {
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
     });
     
     fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) handleFile(fileInput.files[0]);
+        if (fileInput.files.length) handleFileUpload(fileInput.files[0]);
     });
 }
 
-function handleFile(file) {
+async function handleFileUpload(file) {
     if (!file.type.startsWith('image/')) {
         alert('Please upload an image file (PNG, JPG, WEBP).');
         return;
     }
+
     const reader = new FileReader();
     reader.onload = (e) => {
         previewImg.src = e.target.result;
         mediaPreview.classList.remove('hidden');
         dropZone.classList.add('hidden');
-        
-        // Auto extract mock news text for OCR
-        newsInput.value = "Extracted OCR Headline: Breaking investigation reveals unexpected policy changes announced by health authorities during today's international press conference.";
-        updateInputCounters();
     };
     reader.readAsDataURL(file);
+
+    if (ocrStatusTag) ocrStatusTag.textContent = 'Running OCR extraction...';
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const endpoints = [
+        API,
+        'https://truthlens-1-ue36.onrender.com',
+        'http://127.0.0.1:8000',
+        window.location.origin
+    ];
+    const unique = [...new Set(endpoints.filter(Boolean))];
+
+    let ocrResult = null;
+    for (const base of unique) {
+        try {
+            const res = await fetch(`${base}/api/ocr/extract`, {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                ocrResult = await res.json();
+                break;
+            }
+        } catch (err) {
+            // try fallback
+        }
+    }
+
+    if (ocrResult && ocrResult.status === 'success' && ocrResult.text) {
+        if (ocrStatusTag) ocrStatusTag.textContent = `✓ OCR Extracted (${ocrResult.confidence}% confidence)`;
+        newsInput.value = ocrResult.text;
+        updateInputCounters();
+        tabText.click();
+    } else {
+        if (ocrStatusTag) ocrStatusTag.textContent = ocrResult?.note || 'OCR engine offline. Please paste text directly.';
+        alert(ocrResult?.note || 'OCR is not configured in this environment. Please paste article text directly.');
+    }
 }
 
 if (removeMediaBtn) {
@@ -167,27 +261,13 @@ if (removeMediaBtn) {
     });
 }
 
-if (fetchUrlBtn) {
-    fetchUrlBtn.addEventListener('click', () => {
-        const url = urlInput.value.trim();
-        if (!url) { alert('Please enter a valid URL.'); return; }
-        newsInput.value = `Article fetched from ${url}:\nScientists and economists from international institutions released a joint declaration analyzing market shifts and climate metrics across the latest quarter.`;
-        updateInputCounters();
-        tabText.click();
-    });
-}
-
-// ─── SIDEBAR TOGGLE ───────────────────────────────────────
+// ─── SIDEBAR & MODAL CONTROLS ─────────────────────────────
 if (openSidebarBtn && sidebar) {
-    openSidebarBtn.addEventListener('click', () => {
-        sidebar.classList.add('open');
-    });
+    openSidebarBtn.addEventListener('click', () => sidebar.classList.add('open'));
 }
 
 if (toggleSidebarBtn && sidebar) {
-    toggleSidebarBtn.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-    });
+    toggleSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open'));
 }
 
 document.addEventListener('click', (e) => {
@@ -198,6 +278,20 @@ document.addEventListener('click', (e) => {
     }
 });
 
+if (howItWorksBtn && methodologyModal) {
+    howItWorksBtn.addEventListener('click', () => methodologyModal.classList.remove('hidden'));
+}
+
+if (closeModalBtn && methodologyModal) {
+    closeModalBtn.addEventListener('click', () => methodologyModal.classList.add('hidden'));
+}
+
+if (methodologyModal) {
+    methodologyModal.addEventListener('click', (e) => {
+        if (e.target === methodologyModal) methodologyModal.classList.add('hidden');
+    });
+}
+
 // ─── ANIMATED LOADING STEPPER ─────────────────────────────
 let stepperInterval = null;
 
@@ -206,10 +300,10 @@ function startStepperAnimation() {
     stepperCard.classList.remove('hidden');
     let step = 1;
     const steps = [
-        { pct: 25, title: '1. Syntax Tokenization & Linguistic Vectors...' },
-        { pct: 50, title: '2. Sentiment, Fear & Emotional Drivers...' },
-        { pct: 75, title: '3. Political Polarization & Claim Mapping...' },
-        { pct: 95, title: '4. Synthesizing Forensic Credibility Rating...' }
+        { pct: 25, title: '1. Declarative Claim Extraction & Sentence Boundary...' },
+        { pct: 50, title: '2. Multi-Source Evidence Query & Normalization...' },
+        { pct: 75, title: '3. Claim-Evidence Semantic NLI & Refutation Match...' },
+        { pct: 95, title: '4. Deterministic Scoring & Verdict Synthesis...' }
     ];
 
     document.querySelectorAll('.stepper-steps .step').forEach((s, idx) => {
@@ -226,7 +320,7 @@ function startStepperAnimation() {
             if (stepEl) stepEl.classList.add('active');
             step++;
         }
-    }, 700);
+    }, 600);
 }
 
 function stopStepperAnimation() {
@@ -234,18 +328,18 @@ function stopStepperAnimation() {
     if (stepperCard) stepperCard.classList.add('hidden');
 }
 
-// ─── FORM SUBMIT WITH SMART FAILOVER ──────────────────────
+// ─── FORM SUBMIT WITH ASYNC REST ENDPOINTS ────────────────
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = newsInput.value.trim();
-    if (text.length < 20) {
-        alert('Please enter at least 20 characters to run forensic analysis.');
+    if (text.length < 10) {
+        alert('Please enter at least 10 characters to run forensic analysis.');
         return;
     }
 
     analyzeBtn.disabled = true;
     spinner.classList.remove('hidden');
-    btnText.textContent = 'Analyzing Forensic Vectors...';
+    btnText.textContent = 'Verifying Factual Claims...';
     startStepperAnimation();
 
     const endpoints = [
@@ -261,13 +355,25 @@ form.addEventListener('submit', async (e) => {
     for (const base of unique) {
         try {
             const controller = new AbortController();
-            const tid = setTimeout(() => controller.abort(), 22000);
-            const res = await fetch(`${base}/analyze`, {
+            const tid = setTimeout(() => controller.abort(), 20000);
+            
+            // Try /api/analyze then fallback /analyze
+            let res = await fetch(`${base}/api/analyze`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text }),
                 signal: controller.signal
             });
+
+            if (!res.ok && res.status !== 400 && res.status !== 413) {
+                res = await fetch(`${base}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                    signal: controller.signal
+                });
+            }
+
             clearTimeout(tid);
             if (res.ok) {
                 data = await res.json();
@@ -281,7 +387,7 @@ form.addEventListener('submit', async (e) => {
     stopStepperAnimation();
     analyzeBtn.disabled = false;
     spinner.classList.add('hidden');
-    btnText.textContent = 'Run Forensic Analysis';
+    btnText.textContent = 'Run Evidence Analysis';
 
     if (data && !data.error) {
         lastData = { ...data, _inputText: text };
@@ -289,12 +395,12 @@ form.addEventListener('submit', async (e) => {
         fetchHistory();
         fetchStats();
     } else {
-        alert('❌ Unable to reach the analysis backend. If the free cloud server is sleeping, it may take ~20 seconds to wake up. Please click Analyze again!');
+        alert('❌ Unable to reach the analysis engine. If the cloud container is waking up, please wait a few seconds and try again!');
     }
 });
 
-// ─── ANIMATED GAUGE & NUMBER COUNT-UP ─────────────────────
-function animateNumber(elementId, targetValue, duration = 1200) {
+// ─── ANIMATED COUNT-UP NUMBER HELPER ──────────────────────
+function animateNumber(elementId, targetValue, duration = 1000) {
     const el = document.getElementById(elementId);
     if (!el) return;
     const start = 0;
@@ -305,71 +411,118 @@ function animateNumber(elementId, targetValue, duration = 1200) {
     function update(time) {
         const elapsed = time - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        // EaseOutQuad
         const current = Math.round(start + (end - start) * (1 - (1 - progress) * (1 - progress)));
         el.textContent = current;
-        if (progress < 1) {
-            requestAnimationFrame(update);
-        } else {
-            el.textContent = end;
-        }
+        if (progress < 1) requestAnimationFrame(update);
+        else el.textContent = end;
     }
     requestAnimationFrame(update);
 }
 
-// ─── RENDER FORENSIC RESULTS ──────────────────────────────
+// ─── RENDER FORENSIC RESULTS & EVIDENCE MATRIX ────────────
 function renderForensicResults(d, text) {
     resultsPanel.classList.remove('hidden');
 
-    // 1. Verdict Banner & Score Gauge
-    const cred = d.credibility_score || 0;
+    // 1. Primary Scientific Verdict & Gauge
+    const cred = Math.round(d.credibility_score || 0);
     const ring = document.getElementById('score-ring');
     const circ = 2 * Math.PI * 42;
     
     ring.style.strokeDasharray = circ;
     setTimeout(() => {
         ring.style.strokeDashoffset = circ - (cred / 100) * circ;
-        ring.style.stroke = cred >= 70 ? '#10b981' : cred >= 40 ? '#f59e0b' : '#ef4444';
+        ring.style.stroke = cred >= 65 ? '#10b981' : cred >= 45 ? '#f59e0b' : '#ef4444';
     }, 50);
 
     animateNumber('credibility-score', cred);
-    const scoreLabel = document.getElementById('score-label-text');
-    if (scoreLabel) scoreLabel.textContent = 'CREDIBILITY';
-
-    // Classification Badge & Theme Class
-    const badge = document.getElementById('classification-badge');
-    const verdictBanner = document.getElementById('verdict-banner');
-    const classification = (d.classification || 'UNKNOWN').toUpperCase();
     
-    badge.textContent = classification;
-    badge.className = `verdict-pill ${classification.toLowerCase()}`;
+    // Primary Scientific Verdict Badge (SUPPORTED, CONTRADICTED, MIXED, UNVERIFIED)
+    const primaryBadge = document.getElementById('primary-verdict-badge');
+    const legacyBadge = document.getElementById('classification-badge');
+    const verdictBanner = document.getElementById('verdict-banner');
+    const pVerdict = (d.primary_verdict || 'UNVERIFIED').toUpperCase();
+    const lClass = (d.legacy_classification || 'UNKNOWN').toUpperCase();
+
+    if (primaryBadge) {
+        primaryBadge.textContent = pVerdict;
+        primaryBadge.className = `verdict-pill ${pVerdict.toLowerCase()}`;
+    }
+
+    if (legacyBadge) {
+        legacyBadge.textContent = `VERDICT: ${lClass}`;
+    }
+
     if (verdictBanner) {
-        verdictBanner.className = `verdict-banner ${classification.toLowerCase()}`;
+        verdictBanner.className = `verdict-banner ${pVerdict.toLowerCase()}`;
     }
 
     const titleEl = document.getElementById('verdict-title');
     if (titleEl) {
-        titleEl.textContent = classification === 'REAL'
-            ? 'Verified Authentic Content'
-            : classification === 'SUSPICIOUS'
-            ? 'Sensational / Suspicious Elements'
-            : 'Flagged Deceptive / Disputed Content';
+        if (pVerdict === 'SUPPORTED') titleEl.textContent = 'Evidence Supports Core Assertions';
+        else if (pVerdict === 'CONTRADICTED') titleEl.textContent = 'Core Assertions Contradicted by Evidence';
+        else if (pVerdict === 'MIXED') titleEl.textContent = 'Mixed / Disputed Evidence Detected';
+        else titleEl.textContent = 'Unverified: Limited Independent Evidence';
     }
 
     const msgEl = document.getElementById('classification-message');
     if (msgEl) msgEl.textContent = d.message || 'Forensic evaluation complete.';
 
-    // Sentiment Subpill
     const stag = document.getElementById('sentiment-tag');
-    if (stag && d.sentiment) stag.textContent = `${d.sentiment.tone} Tone`;
+    if (stag && d.sentiment) stag.textContent = `${d.sentiment.tone}`;
 
     // 2. Quick HUD Metrics
     setText('word-count', d.text_length || text.split(/\s+/).length);
     setText('fake-prob', (d.fake_probability || 0) + '%');
     setText('confidence-metric', (d.confidence || 0) + '%');
-    setText('entity-count', d.evidence ? d.evidence.length : 0);
+    setText('claims-count-val', d.claims ? d.claims.length : 0);
 
-    // 3. Sentiment Bars
+    // 3. Render Factual Claim & Evidence Matrix Cards
+    const claimStack = document.getElementById('claim-cards-stack');
+    if (claimStack) {
+        if (d.claims && d.claims.length > 0) {
+            claimStack.innerHTML = d.claims.map((c, i) => {
+                const cVerdict = (c.verdict || 'UNVERIFIED').toUpperCase();
+                const evidenceHTML = (c.evidence && c.evidence.length > 0)
+                    ? c.evidence.map(ev => `
+                        <div class="evidence-subcard">
+                            <div class="evidence-source-bar">
+                                <a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="evidence-link">
+                                    <span>🌐 ${ev.source_name}</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+                                </a>
+                                <span class="authority-pill">${Math.round(ev.authority_score * 100)}% Authority</span>
+                            </div>
+                            <p class="evidence-snippet-text"><strong>${ev.title}:</strong> ${ev.snippet}</p>
+                        </div>
+                    `).join('')
+                    : `<div class="evidence-subcard"><p class="empty-state">No independent wire or knowledge entries matched this specific assertion.</p></div>`;
+
+                return `
+                    <div class="claim-card-unit">
+                        <div class="claim-header-row">
+                            <div style="display:flex; align-items:center; gap:0.6rem;">
+                                <span class="claim-id-tag">${c.claim_id || `#claim_${i+1}`}</span>
+                                <span class="claim-badge ${cVerdict.toLowerCase()}">${cVerdict}</span>
+                            </div>
+                            <span class="micro-stats">Confidence: ${Math.round(c.confidence || 50)}%</span>
+                        </div>
+                        <p class="claim-statement-text">"${c.text}"</p>
+                        <div class="claim-explanation-box">
+                            <strong>Diagnostic Finding:</strong> ${c.explanation || 'Evaluated against knowledge repositories.'}
+                        </div>
+                        <div class="evidence-subcards-list">
+                            <span class="section-micro-label">Citations & Evidence Retrieved</span>
+                            ${evidenceHTML}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            claimStack.innerHTML = `<div class="claim-card-unit"><p class="empty-state">No declarative factual claims extracted for external verification.</p></div>`;
+        }
+    }
+
+    // 4. Linguistic Risk Signals (Strictly Separated)
     if (d.sentiment) {
         setText('sentiment-tone-badge', d.sentiment.tone || 'Neutral');
         setBar('bar-positive', d.sentiment.positive_pct);
@@ -380,7 +533,6 @@ function renderForensicResults(d, text) {
         setText('val-fear', d.sentiment.fear_pct + '%');
     }
 
-    // 4. Bias Meter & Needle
     if (d.bias) {
         setText('bias-leaning-badge', d.bias.leaning || 'Center');
         const needle = document.getElementById('bias-needle');
@@ -397,7 +549,6 @@ function renderForensicResults(d, text) {
         ], 'trigger-chip');
     }
 
-    // 5. Clickbait & Sensationalism
     if (d.clickbait) {
         animateNumber('clickbait-score-val', d.clickbait.score || 0);
         setText('clickbait-level', d.clickbait.level || 'Low');
@@ -409,22 +560,18 @@ function renderForensicResults(d, text) {
         renderChips('clickbait-triggers', d.clickbait.triggers || [], 'trigger-chip');
     }
 
-    // 6. Virality Risk
     if (d.virality_risk) {
         animateNumber('virality-score-val', d.virality_risk.score || 0);
         setText('virality-risk-label', d.virality_risk.risk || 'Low');
         setBar('virality-bar', d.virality_risk.score);
         const vf = document.getElementById('virality-factors');
         if (vf) {
-            vf.innerHTML = `
-                <div class="factor-item">⚡ Misinformation weighting: ${d.fake_probability || 0}%</div>
-                <div class="factor-item">🎣 Sensational hook score: ${d.clickbait ? d.clickbait.score : 0}/100</div>
-                <div class="factor-item">🔥 Alarmist emotional vector: ${d.sentiment ? d.sentiment.fear_pct : 0}%</div>
-            `;
+            vf.innerHTML = (d.virality_risk.velocity_factors || []).map(f =>
+                `<div class="factor-item">⚡ ${f}</div>`
+            ).join('');
         }
     }
 
-    // 7. Readability
     if (d.readability) {
         animateNumber('readability-score-val', d.readability.score || 0);
         setText('readability-grade', d.readability.grade || 'Standard');
@@ -437,7 +584,6 @@ function renderForensicResults(d, text) {
         }
     }
 
-    // 8. Writing Style
     if (d.writing_style) {
         setText('style-formality', d.writing_style.formality || 'Standard');
         const sg = document.getElementById('style-grid');
@@ -446,18 +592,19 @@ function renderForensicResults(d, text) {
                 <div class="stat-item"><span class="stat-label">Avg Word Length</span><span class="stat-value">${d.writing_style.avg_word_length || 0}</span></div>
                 <div class="stat-item"><span class="stat-label">Passive Voice</span><span class="stat-value">${d.writing_style.passive_voice_count || 0}</span></div>
                 <div class="stat-item"><span class="stat-label">Direct Quotes</span><span class="stat-value">${d.writing_style.quote_count || 0}</span></div>
-                <div class="stat-item"><span class="stat-label">Numeric Data</span><span class="stat-value">${d.writing_style.number_count || 0}</span></div>
+                <div class="stat-item"><span class="stat-label">Numeric Claims</span><span class="stat-value">${d.writing_style.number_count || 0}</span></div>
                 <div class="stat-item"><span class="stat-label">Hyperlinks</span><span class="stat-value">${d.writing_style.url_count || 0}</span></div>
-                <div class="stat-item"><span class="stat-label">Sentence Count</span><span class="stat-value">${d.writing_style.sentence_count || 0}</span></div>
+                <div class="stat-item"><span class="stat-label">Sentences</span><span class="stat-value">${d.writing_style.sentence_count || 0}</span></div>
             `;
         }
     }
 
-    // 9. NLP Evidence & Entities
+    // Entities
     const entityBox = document.getElementById('entity-tags');
     if (entityBox) {
-        if (d.evidence && d.evidence.length > 0) {
-            entityBox.innerHTML = d.evidence.map(e =>
+        const ents = d.entities || d.evidence || [];
+        if (ents.length > 0) {
+            entityBox.innerHTML = ents.map(e =>
                 `<span class="entity-chip ${e.label}">${e.text} <small>${e.label}</small></span>`
             ).join('');
         } else {
@@ -465,36 +612,10 @@ function renderForensicResults(d, text) {
         }
     }
 
-    // 10. Context & Sources
-    setText('context-box', d.actual_news_context || 'Cross-reference check complete.');
-    const cs = document.getElementById('context-sources');
-    if (cs) {
-        const sources = [
-            { name: 'Reuters Fact Index', status: d.classification === 'REAL' ? 'confirmed' : 'unverified' },
-            { name: 'AP News Wire', status: d.classification === 'REAL' ? 'confirmed' : d.classification === 'FAKE' ? 'disputed' : 'unverified' },
-            { name: 'FactCheck Network', status: d.classification === 'FAKE' ? 'disputed' : 'unverified' }
-        ];
-        cs.innerHTML = sources.map(s =>
-            `<div class="source-item"><span class="source-name">${s.name}</span><span class="source-status ${s.status}">${s.status}</span></div>`
-        ).join('');
-    }
-
-    // 11. Extracted Claims
-    const cl = document.getElementById('claims-list');
-    if (cl) {
-        if (d.extracted_claims && d.extracted_claims.length > 0) {
-            cl.innerHTML = d.extracted_claims.map((c, i) =>
-                `<div class="claim-item"><span class="claim-num">#${i + 1}</span><span class="claim-text">${c}</span></div>`
-            ).join('');
-        } else {
-            cl.innerHTML = '<span class="empty-state">No specific factual assertion patterns detected</span>';
-        }
-    }
-
-    // 12. Keywords & Triggers
+    // Triggered Keywords
     renderChips('keyword-chips', d.triggered_keywords || [], 'keyword-chip');
 
-    // 13. Raw Diagnostic JSON
+    // Raw JSON Report
     const desc = document.getElementById('description-text');
     if (desc) desc.textContent = JSON.stringify(d, null, 2);
 
@@ -528,17 +649,17 @@ function renderChips(containerId, items, chipClass) {
 // ─── HISTORY & STATS API ──────────────────────────────────
 async function fetchHistory() {
     try {
-        const res = await fetch(`${API}/history`);
+        const res = await fetch(`${API}/api/history`);
         const data = await res.json();
         if (data.history && data.history.length > 0) {
             historyListEl.innerHTML = data.history.map(h => `
                 <li class="history-item" onclick="loadHistoryItem('${h.snippet.replace(/'/g, "\\'")}')">
                     <div class="history-top">
-                        <span class="history-badge ${h.classification.toLowerCase()}">${h.classification}</span>
+                        <span class="history-badge ${(h.primary_verdict || h.classification).toLowerCase()}">${h.primary_verdict || h.classification}</span>
                         <span class="history-time">${new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     </div>
                     <div class="history-snippet">${h.snippet}</div>
-                    <div class="history-score">Credibility: ${h.credibility_score}%</div>
+                    <div class="history-score">Credibility: ${Math.round(h.credibility_score)}%</div>
                 </li>
             `).join('');
             if (clearHistoryBtn) clearHistoryBtn.classList.remove('hidden');
@@ -546,7 +667,7 @@ async function fetchHistory() {
             historyListEl.innerHTML = `
                 <div class="history-empty">
                     <div class="empty-icon">📂</div>
-                    <p>No previous scans yet.<br>Analyze an article to start logging history.</p>
+                    <p>No previous scans logged yet.<br>Analyze an article to start logging history.</p>
                 </div>
             `;
             if (clearHistoryBtn) clearHistoryBtn.classList.add('hidden');
@@ -565,7 +686,7 @@ window.loadHistoryItem = function(snippet) {
 
 async function fetchStats() {
     try {
-        const res = await fetch(`${API}/stats`);
+        const res = await fetch(`${API}/api/stats`);
         const d = await res.json();
         const total = d.total || 0;
         setText('stat-total', total);
@@ -586,7 +707,7 @@ if (clearHistoryBtn) {
     clearHistoryBtn.addEventListener('click', async () => {
         if (!confirm('Are you sure you want to clear all history records?')) return;
         try {
-            await fetch(`${API}/history`, { method: 'DELETE' });
+            await fetch(`${API}/api/history`, { method: 'DELETE' });
             fetchHistory();
             fetchStats();
         } catch (e) {
@@ -617,7 +738,7 @@ if (dlBtn2) dlBtn2.addEventListener('click', exportReportJSON);
 if (shareBtn) {
     shareBtn.addEventListener('click', () => {
         if (!lastData) { alert('Please run an analysis first.'); return; }
-        const summary = `🔍 TruthLens Forensic Summary:\n• Verdict: ${lastData.classification}\n• Credibility Score: ${lastData.credibility_score}%\n• Deception Risk: ${lastData.fake_probability}%\n• Tone: ${lastData.sentiment ? lastData.sentiment.tone : 'N/A'}\n• Verified via: https://dilipkumarprudhvi-a11y.github.io/truthlens/`;
+        const summary = `🔍 TruthLens Evidence Summary:\n• Primary Verdict: ${lastData.primary_verdict}\n• Credibility Score: ${lastData.credibility_score}%\n• Evidence Confidence: ${lastData.confidence}%\n• Claims Extracted: ${lastData.claims ? lastData.claims.length : 0}\n• Verified via: https://dilipkumarprudhvi-a11y.github.io/truthlens/`;
         navigator.clipboard.writeText(summary).then(() => {
             const span = shareBtn.querySelector('span');
             if (span) span.textContent = '✓ Summary Copied!';

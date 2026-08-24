@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How TruthLens Works — Evidence-Grounded Verification Architecture</title>
+    <link rel="canonical" href="https://dilipkumarprudhvi-a11y.github.io/truthlens/how-it-works.html">
+    <meta name="description" content="Detailed guide on TruthLens AI's scientific claim extraction, multi-source evidence corroboration, and linguistic risk analysis architecture.">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page-body { max-width: 820px; margin: 2rem auto; padding: 2rem; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); }
+        .page-body h2 { font-size: 1.75rem; font-weight: 800; color: var(--text-primary); margin: 1.5rem 0 0.75rem; }
+        .page-body h3 { font-size: 1.2rem; font-weight: 700; color: var(--accent-blue); margin: 1.25rem 0 0.5rem; }
+        .page-body p { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.65; margin-bottom: 1rem; }
+        .page-body ul { margin-left: 1.5rem; margin-bottom: 1.25rem; color: var(--text-secondary); line-height: 1.6; }
+        .back-nav { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--accent-blue); text-decoration: none; font-weight: 700; margin-bottom: 1.5rem; }
+    </style>
+</head>
+<body class="dark-theme">
+    <div class="ambient-glow glow-1"></div>
+    <div class="app-layout">
+        <div class="main-wrapper">
+            <header class="app-header">
+                <div class="brand-logo">
+                    <div class="logo-icon-box">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                    </div>
+                    <div class="brand-text">
+                        <h1>Truth<span>Lens</span></h1>
+                        <span class="brand-tag">Verification Architecture</span>
+                    </div>
+                </div>
+                <a href="index.html" class="btn-ghost-pill">← Back to Analyzer</a>
+            </header>
+
+            <main class="page-body">
+                <a href="index.html" class="back-nav">← Back to Live Dashboard</a>
+                
+                <h2>How TruthLens Verifies Information</h2>
+                <p>TruthLens is designed around a multi-stage, evidence-first methodology that completely decouples rhetorical style from factual truth.</p>
+
+                <h3>Stage 1: Declarative Claim Extraction</h3>
+                <p>When an article or statement is submitted, the system splits content into syntactic sentences and filters out subjective opinions, rhetorical questions, and greetings to extract atomic testable factual claims.</p>
+
+                <h3>Stage 2: Real Evidence Retrieval</h3>
+                <p>For each extracted claim, TruthLens generates targeted keyword queries and queries authoritative public knowledge repositories, including Wikipedia, DuckDuckGo Knowledge Index, and the Google Fact Check Tools database. TruthLens adheres strictly to the rule: <em>never fabricate evidence citations</em>.</p>
+
+                <h3>Stage 3: Natural Language Inference (NLI) & Refutation Matching</h3>
+                <p>The system evaluates retrieved evidence snippets for direct fact-check classifications (False, True, Misleading), refutation markers (e.g. <em>debunked, hoax, disproved</em>), and affirmation markers (e.g. <em>peer-reviewed, confirmed, documented</em>).</p>
+
+                <h3>Stage 4: Deterministic Scientific Verdict</h3>
+                <p>Claims and evidence are aggregated into four scientific categories:</p>
+                <ul>
+                    <li><strong style="color:var(--accent-green)">SUPPORTED</strong>: Corroborated by independent, authoritative reporting.</li>
+                    <li><strong style="color:var(--accent-red)">CONTRADICTED</strong>: Refuted or disputed by verified evidence.</li>
+                    <li><strong style="color:var(--accent-amber)">MIXED</strong>: Content combines substantiated facts with disputed assertions.</li>
+                    <li><strong style="color:var(--accent-purple)">UNVERIFIED</strong>: Insufficient independent evidence found in indexed knowledge repositories.</li>
+                </ul>
+
+                <h3>Stage 5: Linguistic Risk Signals</h3>
+                <p>In parallel, the linguistic engine computes 6 deterministic stylistic vectors: sentiment polarity, fear index, clickbait score, partisan balance ratio, Flesch readability, and syntactic formality. These provide critical context on <em>how</em> content is framed.</p>
+            </main>
+
+            <footer class="app-footer">
+                <div class="footer-content">
+                    <p>TruthLens AI Intelligence • Built for media literacy and factual verification.</p>
+                    <div class="footer-links">
+                        <a href="index.html">Dashboard</a> • <a href="faq.html">FAQ</a> • <a href="privacy.html">Privacy</a> • <a href="terms.html">Terms</a>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+</body>
+</html>

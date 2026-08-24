@@ -11,14 +11,21 @@ build/
 venv/
 .venv/
 env/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# SQLite Database (generated at runtime)
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+history.db
 backend/history.db
 
-# Environment
+# Environment & Secrets
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
 
 # IDE / OS
 .vscode/
@@ -29,6 +36,7 @@ desktop.ini
 
 # Logs
 *.log
+logs/
 
 # Docker
 .dockerignore
