@@ -93,7 +93,7 @@ function showToast(msg, type = 'info') {
   t.textContent = msg;
   Object.assign(t.style, {
     position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
-    background: type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#14b8a6',
+    background: type === 'error' ? '#EF4444' : type === 'success' ? '#22C55E' : '#2563EB',
     color: '#fff', fontWeight: '700', fontSize: '.82rem',
     padding: '.6rem 1.1rem', borderRadius: '8px',
     boxShadow: '0 8px 24px rgba(0,0,0,.5)',
@@ -270,7 +270,7 @@ function renderVerdictCard(d) {
   const dashOffset = 264 - (264 * clamp(cred, 0, 100)) / 100;
   const ring = $('gauge-ring');
   ring.style.strokeDashoffset = dashOffset;
-  const gaugeColor = cred >= 65 ? '#10b981' : cred >= 45 ? '#f59e0b' : '#ef4444';
+  const gaugeColor = cred >= 65 ? '#22C55E' : cred >= 45 ? '#F59E0B' : '#EF4444';
   ring.style.stroke = gaugeColor;
   $('gauge-val').textContent = Math.round(cred);
 
@@ -285,7 +285,7 @@ function renderVerdictCard(d) {
   // Legacy badge
   const lb = $('legacy-badge');
   lb.textContent = `Legacy: ${legacy}`;
-  lb.style.color = legacy === 'REAL' ? '#34d399' : legacy === 'FAKE' ? '#f87171' : '#fbbf24';
+  lb.style.color = legacy === 'REAL' ? '#22C55E' : legacy === 'FAKE' ? '#EF4444' : '#F59E0B';
 
   // Tone badge
   const tone = (d.sentiment || {}).tone || (d.linguistic_signals?.sentiment || {}).tone || '';
@@ -308,7 +308,7 @@ function renderVerdictCard(d) {
   $('vm-claims').textContent = (d.claims || []).length;
 
   const fakeEl = $('vm-fake');
-  fakeEl.style.color = fake > 60 ? '#ef4444' : fake > 40 ? '#f59e0b' : '#10b981';
+  fakeEl.style.color = fake > 60 ? '#EF4444' : fake > 40 ? '#F59E0B' : '#22C55E';
 }
 
 /* Claims & evidence matrix */

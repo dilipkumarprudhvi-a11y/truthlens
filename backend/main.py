@@ -3,11 +3,20 @@ TruthLens AI — Main FastAPI Application Entrypoint
 Evidence-first credibility, claim verification, and linguistic analysis engine.
 """
 
+import sys
 import os
 import time
 import uuid
 import logging
 from contextlib import asynccontextmanager
+
+# Robust path handling for both root execution and Render backend rootDir execution
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
@@ -15,8 +24,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from .db.session import init_db
-from .api.routes import router as api_router
+try:
+    from backend.db.session import init_db
+    from backend.api.routes import router as api_router
+except (ImportError, ModuleNotFoundError):
+    from db.session import init_db
+    from api.routes import router as api_router
 
 # Configure Structured Logging
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO").upper()
