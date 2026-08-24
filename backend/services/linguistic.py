@@ -1,7 +1,12 @@
 """
 Deterministic Linguistic Risk Signal Engine
 Evaluates rhetorical style, emotional vectors, readability, and syntax patterns.
-Note: Linguistic signals evaluate writing style and are NOT proof of factual truth.
+
+IMPORTANT DISCLAIMER:
+  Linguistic signals evaluate writing style, emotion, and structure.
+  They are NOT proof of factual truth or falsity.
+  High clickbait or negative sentiment does not mean a claim is false.
+  Low scores do not guarantee accuracy.
 """
 
 import re
@@ -27,64 +32,82 @@ except Exception:
     NLP_AVAILABLE = False
 
 
-# ─── LEXICONS ─────────────────────────────────────────────
+# ─── LEXICONS ──────────────────────────────────────────────────────────────────
+
 POSITIVE_WORDS = {
     "breakthrough", "success", "innovative", "progress", "advance", "effective", "efficient",
-    "verified", "confirmed", "collaborate", "benefit", "growth", "achievement", "promising",
-    "positive", "triumph", "solution", "reliable", "sustainable", "peer-reviewed", "proven",
-    "cure", "improved", "safely", "excellent", "accurate", "clean", "vital", "remarkable"
+    "collaborate", "benefit", "growth", "achievement", "promising", "positive", "triumph",
+    "solution", "reliable", "sustainable", "peer-reviewed", "improved", "excellent",
+    "accurate", "clean", "vital", "remarkable", "approved", "funded", "published", "launched"
 }
 
 NEGATIVE_WORDS = {
-    "crisis", "disaster", "collapse", "corrupt", "failure", "threat", "danger", "fraud",
-    "destructive", "deadly", "fatal", "scandal", "deception", "horrific", "tragedy",
-    "catastrophic", "toxic", "damaging", "hostile", "ruined", "bankrupt", "sabotage",
-    "warning", "severe", "abusive", "unethical", "plague", "treason", "illegal", "crime"
+    "crisis", "disaster", "collapse", "corrupt", "failure", "threat", "fraud",
+    "destructive", "deadly", "fatal", "horrific", "tragedy", "catastrophic", "toxic",
+    "damaging", "hostile", "ruined", "bankrupt", "sabotage", "severe", "abusive",
+    "unethical", "plague", "treason", "illegal", "crime", "violence", "war", "attack"
 }
 
 FEAR_ALARM_WORDS = {
-    "panic", "apocalypse", "deadly", "terrifying", "catastrophe", "imminent", "nightmare",
-    "shocking", "doomsday", "destroy", "annihilate", "bio-weapon", "toxic", "fatal",
-    "emergency", "existential", "threat", "chaos", "outbreak", "weaponized", "kill",
-    "flee", "horrifying", "unprecedented danger", "banned", "censored", "they don't want"
+    "panic", "apocalypse", "terrifying", "catastrophe", "imminent", "nightmare",
+    "doomsday", "annihilate", "bio-weapon", "existential", "chaos", "outbreak",
+    "weaponized", "unprecedented danger", "they don't want you to know", "flee"
 }
 
-CLICKBAIT_TRIGGERS = [
-    "you won't believe", "shocking truth", "what happened next", "miracle cure",
-    "secret trick", "they don't want you to know", "blow your mind", "jaw dropping",
-    "doctors stunned", "click here", "will leave you speechless", "revealed at last",
-    "exposed forever", "the real truth about", "warning to all", "must see this",
-    "anonymous sources confirm", "banned video", "mind blowing"
+# Hard deception signals — words/phrases that are genuinely rare in real journalism
+# and highly correlated with misinformation patterns
+DECEPTION_TIER1 = [
+    "illuminati", "deep state conspiracy", "magic cure", "mind control", "chemtrails",
+    "new world order", "they don't want you to know", "secret cabal", "globalist plot",
+    "miracle cure discovered", "doctors are hiding", "banned forever", "one weird trick",
+    "what doctors won't tell you", "wake up sheeple", "reptilian",
+    # Additional hard patterns
+    "miracle cure", "deep state", "secret conspiracy", "secret remedy",
+    "globalist", "world government order", "globalist tyrant",
+    "buy now before", "buy now and", "anonymous experts confirm",
 ]
 
+# Soft sensationalism signals — appear in both real and fake content
+# so they carry only mild weighting
+DECEPTION_TIER2 = [
+    "you won't believe", "shocking truth", "what happened next",
+    "jaw dropping", "doctors stunned", "click here", "will leave you speechless",
+    "mind blowing", "exposed forever", "blow your mind"
+]
+
+CLICKBAIT_TRIGGERS = DECEPTION_TIER1 + DECEPTION_TIER2
+
+# NOTE: "breaking", "truth", "warning", "secret", "scandal", "exposed" are intentionally
+# REMOVED from triggered keywords — they appear every day in legitimate journalism.
+# Including them causes catastrophic false-positive rates.
+
 LEFT_BIAS_WORDS = {
-    "progressive", "corporate greed", "wealth tax", "systemic", "marginalized", "universal healthcare",
-    "oligarchy", "climate emergency", "living wage", "far-right", "regressive", "disenfranchised",
-    "grassroots", "unionize", "social justice", "anti-capitalist", "redistribution"
+    "progressive", "corporate greed", "wealth tax", "systemic", "marginalized",
+    "universal healthcare", "oligarchy", "climate emergency", "living wage",
+    "far-right", "regressive", "disenfranchised", "grassroots", "unionize",
+    "social justice", "anti-capitalist", "redistribution"
 }
 
 RIGHT_BIAS_WORDS = {
-    "patriot", "deep state", "socialist agenda", "woke", "tyranny", "globalist", "border crisis",
-    "indoctrination", "freedom of speech", "mainstream media", "liberty", "free market",
-    "bureaucrats", "unconstitutional", "marxist", "traditional values", "law and order"
+    "deep state", "socialist agenda", "woke", "tyranny", "globalist", "border crisis",
+    "indoctrination", "mainstream media bias", "free market", "bureaucrats",
+    "unconstitutional", "marxist", "traditional values", "law and order",
+    "patriot movement", "second amendment"
 }
 
 POLARIZATION_AMPLIFIERS = {
-    "traitor", "treason", "evil", "puppet", "tyrant", "fascist", "communist", "destroying the country",
-    "conspiracy", "enemy of the people", "cover-up", "shameless", "radical", "corrupt cabal"
+    "traitor", "treason", "evil puppet", "tyrant", "destroying the country",
+    "enemy of the people", "corrupt cabal", "radical extremist", "shameless traitor"
 }
 
-SUSPICIOUS_KEYWORD_PATTERNS = [
-    "shocking", "you won't believe", "secret", "hoax", "conspiracy",
-    "exposed", "truth", "miracle", "click here", "scandal", "buy now",
-    "illuminati", "deep state", "magic cure", "breaking", "urgent warning",
-    "banned", "censored", "they don't want", "hidden truth", "unmasked"
-]
 
+# ─── SENTIMENT ─────────────────────────────────────────────────────────────────
 
-# ─── DETERMINISTIC NLP CALCULATORS ────────────────────────
 def compute_sentiment(text: str) -> SentimentSignal:
-    """Deterministic lexicon-based sentiment analysis."""
+    """
+    Deterministic lexicon-based sentiment analysis.
+    Counts positive, negative, and fear-related words relative to total word count.
+    """
     words = re.findall(r'\b[a-z]{3,}\b', text.lower())
     if not words:
         return SentimentSignal(
@@ -117,7 +140,7 @@ def compute_sentiment(text: str) -> SentimentSignal:
     polarity = (pos_count - neg_count) / max(1, (pos_count + neg_count))
     polarity_score = round(max(-1.0, min(1.0, polarity)), 2)
 
-    if fear_pct > 8 or (fear_count >= 2 and neg_count > pos_count):
+    if fear_pct > 10 or (fear_count >= 3 and neg_count > pos_count):
         tone = "Alarmist / Fear-Inducing"
     elif polarity_score >= 0.25:
         tone = "Positive / Optimistic"
@@ -126,49 +149,63 @@ def compute_sentiment(text: str) -> SentimentSignal:
     else:
         tone = "Neutral / Objective"
 
+    # Scale to 0-100 display (cap at reasonable visual ranges)
     return SentimentSignal(
         tone=tone,
-        positive_pct=min(100, pos_pct * 4),
-        negative_pct=min(100, neg_pct * 4),
-        fear_pct=min(100, fear_pct * 5),
+        positive_pct=min(100, pos_pct * 5),
+        negative_pct=min(100, neg_pct * 5),
+        fear_pct=min(100, fear_pct * 8),
         polarity_score=polarity_score
     )
 
 
+# ─── CLICKBAIT ─────────────────────────────────────────────────────────────────
+
 def compute_clickbait(text: str) -> ClickbaitSignal:
-    """Deterministic clickbait calculation from punctuation, caps, and sensational hooks."""
+    """
+    Deterministic clickbait calculation from punctuation intensity, ALL-CAPS ratio,
+    and specific sensational hook phrases.
+
+    NOTE: "BREAKING" in uppercase is a journalism convention and is excluded from the
+    caps penalty to avoid false positives on legitimate breaking news.
+    """
+    # Exclude common legitimate journalism caps words
+    LEGITIMATE_CAPS = {"BREAKING", "UPDATE", "DEVELOPING", "WATCH", "LIVE", "EXCLUSIVE", "REPORT"}
+
     words = text.split()
     total_words = max(1, len(words))
-    
-    # 1. All-caps words (ignoring short acronyms <= 2 letters)
-    caps_words = [w for w in words if w.isupper() and len(w) > 2 and w.isalpha()]
+
+    caps_words = [w for w in words if w.isupper() and len(w) > 2 and w.isalpha()
+                  and w not in LEGITIMATE_CAPS]
     caps_ratio = len(caps_words) / total_words
 
-    # 2. Punctuation intensity
     exclamation_count = text.count("!")
     question_count = text.count("?")
 
-    # 3. Trigger phrase matches
     text_lower = text.lower()
-    found_triggers = [trig for trig in CLICKBAIT_TRIGGERS if trig in text_lower]
+    found_tier1 = [trig for trig in DECEPTION_TIER1 if trig in text_lower]
+    found_tier2 = [trig for trig in DECEPTION_TIER2 if trig in text_lower]
+    found_triggers = found_tier1 + found_tier2
 
-    # Weighted scoring formula (0-100)
+    # Weighted scoring: Tier 1 phrases score much higher than Tier 2
     score = 0
-    score += min(35, len(found_triggers) * 15)
-    score += min(30, int(caps_ratio * 150))
-    score += min(20, exclamation_count * 6)
-    score += min(15, (question_count - 1) * 5 if question_count > 1 else 0)
+    score += min(50, len(found_tier1) * 25)
+    score += min(20, len(found_tier2) * 10)
+    score += min(25, int(caps_ratio * 120))
+    score += min(15, exclamation_count * 5)
+    # Only count MULTIPLE question marks as clickbait (one question mark is normal)
+    score += min(10, (question_count - 1) * 4 if question_count > 2 else 0)
 
     score = max(0, min(100, score))
 
     if score >= 70:
-        level = "Extreme Clickbait Alert"
+        level = "Extreme Sensationalism"
     elif score >= 45:
         level = "Moderate Clickbait Risk"
     elif score >= 20:
-        level = "Low Sensationalism"
+        level = "Mild Sensationalism"
     else:
-        level = "Minimal / Standard Headline"
+        level = "Standard / Neutral Framing"
 
     return ClickbaitSignal(
         score=score,
@@ -180,8 +217,13 @@ def compute_clickbait(text: str) -> ClickbaitSignal:
     )
 
 
+# ─── POLITICAL BIAS ────────────────────────────────────────────────────────────
+
 def compute_bias(text: str) -> BiasSignal:
-    """Deterministic political bias and partisan tone analyzer."""
+    """
+    Deterministic political bias and partisan tone analyzer.
+    Uses keyword presence. Does NOT evaluate factual accuracy.
+    """
     text_lower = text.lower()
     left_found = [w for w in LEFT_BIAS_WORDS if w in text_lower]
     right_found = [w for w in RIGHT_BIAS_WORDS if w in text_lower]
@@ -190,7 +232,7 @@ def compute_bias(text: str) -> BiasSignal:
     left_score = len(left_found)
     right_score = len(right_found)
 
-    # Balance ratio: 0.0 (Left) to 1.0 (Right), 0.5 is Center
+    # Balance ratio: 0.0 (Left) → 0.5 (Center) → 1.0 (Right)
     balance_ratio = round((right_score + 1) / (left_score + right_score + 2), 2)
 
     diff = right_score - left_score
@@ -217,6 +259,8 @@ def compute_bias(text: str) -> BiasSignal:
     )
 
 
+# ─── READABILITY ───────────────────────────────────────────────────────────────
+
 def count_syllables(word: str) -> int:
     """Count syllables in a word using standard vowel clustering."""
     word = word.lower().strip(".:;?!,'\"")
@@ -224,7 +268,6 @@ def count_syllables(word: str) -> int:
         return 0
     if len(word) <= 3:
         return 1
-    # Count vowel groups
     count = len(re.findall(r'[aeiouy]+', word))
     if word.endswith('e') and not word.endswith('le') and count > 1:
         count -= 1
@@ -232,7 +275,10 @@ def count_syllables(word: str) -> int:
 
 
 def compute_readability(text: str) -> ReadabilitySignal:
-    """Flesch Reading Ease and Flesch-Kincaid Grade Level calculation."""
+    """
+    Flesch Reading Ease (0-100, higher = easier) and grade label.
+    Formula: FRE = 206.835 - 1.015 * ASL - 84.6 * ASW
+    """
     sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
     words = re.findall(r'\b[a-zA-Z]+\b', text)
 
@@ -240,10 +286,9 @@ def compute_readability(text: str) -> ReadabilitySignal:
     num_words = max(1, len(words))
     total_syllables = sum(count_syllables(w) for w in words)
 
-    asl = num_words / num_sentences  # Average Sentence Length
-    asw = total_syllables / num_words  # Average Syllables per Word
+    asl = num_words / num_sentences
+    asw = total_syllables / num_words
 
-    # Flesch Reading Ease formula
     fre = 206.835 - (1.015 * asl) - (84.6 * asw)
     fre_score = round(max(0.0, min(100.0, fre)), 1)
 
@@ -266,6 +311,8 @@ def compute_readability(text: str) -> ReadabilitySignal:
     )
 
 
+# ─── WRITING STYLE ─────────────────────────────────────────────────────────────
+
 def compute_writing_style(text: str, doc: Any = None) -> WritingStyleSignal:
     """Deterministic structural and syntactic writing style assessment."""
     words = text.split()
@@ -273,14 +320,11 @@ def compute_writing_style(text: str, doc: Any = None) -> WritingStyleSignal:
     sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
 
     avg_word_len = round(sum(len(w.strip(".,!?\"'")) for w in words) / total_words, 2)
-    
-    # Passive voice estimation
     passive_matches = re.findall(r'\b(?:is|are|was|were|been|being)\s+([a-z]+ed|[a-z]+en)\b', text.lower())
-    quote_matches = re.findall(r'["\'](.*?)["\']', text)
+    quote_matches = re.findall(r'[""\'](.*?)[""\'"]', text)
     number_matches = re.findall(r'\b\d+(?:[\.,]\d+)?%?\b', text)
     url_matches = re.findall(r'https?://\S+', text)
 
-    # Formality estimation index
     formality_points = 0
     if avg_word_len > 5.0: formality_points += 1
     if len(passive_matches) >= 1: formality_points += 1
@@ -306,6 +350,8 @@ def compute_writing_style(text: str, doc: Any = None) -> WritingStyleSignal:
     )
 
 
+# ─── NAMED ENTITIES ────────────────────────────────────────────────────────────
+
 def extract_entities(text: str, doc: Any = None) -> List[NamedEntity]:
     """Named Entity Recognition using spaCy or deterministic regex fallback."""
     entities: List[NamedEntity] = []
@@ -320,30 +366,40 @@ def extract_entities(text: str, doc: Any = None) -> List[NamedEntity]:
     else:
         # Regex capitalized sequence fallback
         capitalized = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
+        skip = {"The", "A", "An", "This", "That", "It", "In", "On", "At", "Breaking",
+                "Warning", "According", "However", "Meanwhile", "Published", "Scientists"}
         for name in capitalized:
-            if name.lower() not in {"the", "a", "an", "this", "that", "it", "in", "on", "at", "breaking", "warning"} and name not in seen:
+            if name not in skip and name not in seen and len(name) > 2:
                 seen.add(name)
-                entities.append(NamedEntity(text=name, label="ORG" if "Inc" in name or "Org" in name else "PERSON"))
-                if len(entities) >= 6:
+                entities.append(NamedEntity(
+                    text=name,
+                    label="ORG" if any(x in name for x in ["Inc", "Corp", "Ltd", "Agency", "Department"]) else "PERSON"
+                ))
+                if len(entities) >= 8:
                     break
 
     return entities[:12]
 
 
+# ─── VIRALITY PROXY ────────────────────────────────────────────────────────────
+
 def compute_virality_proxy(clickbait_score: int, fear_pct: int, negative_pct: int) -> ViralitySignal:
-    """Composite virality potential estimation based on emotional volatility & clickbait."""
+    """
+    Composite virality potential estimation based on emotional volatility and clickbait.
+    This is a linguistic proxy — it does NOT measure actual social media spread.
+    """
     score = int(round((clickbait_score * 0.5) + (fear_pct * 0.3) + (negative_pct * 0.2)))
     score = max(0, min(100, score))
 
     factors = []
     if clickbait_score > 40:
-        factors.append(f"Sensational hook weighting contributes {clickbait_score}/100")
-    if fear_pct > 15:
-        factors.append(f"High alarmist emotion index: {fear_pct}%")
-    if negative_pct > 20:
-        factors.append(f"Polarizing negative framing: {negative_pct}%")
+        factors.append(f"Sensational hook detected (clickbait score: {clickbait_score}/100)")
+    if fear_pct > 20:
+        factors.append(f"High fear/alarm language density: {fear_pct}%")
+    if negative_pct > 25:
+        factors.append(f"Predominantly negative framing: {negative_pct}%")
     if not factors:
-        factors.append("Low sensationalism and balanced emotional tone reduce viral spread velocity.")
+        factors.append("Balanced tone and standard framing indicate lower viral velocity.")
 
     if score >= 65:
         risk = "High Viral Spread Potential"
@@ -352,18 +408,24 @@ def compute_virality_proxy(clickbait_score: int, fear_pct: int, negative_pct: in
     else:
         risk = "Low Velocity / Standard Spread"
 
-    return ViralitySignal(
-        score=score,
-        risk=risk,
-        velocity_factors=factors
-    )
+    return ViralitySignal(score=score, risk=risk, velocity_factors=factors)
 
+
+# ─── SUSPICIOUS KEYWORD DETECTION ──────────────────────────────────────────────
 
 def extract_suspicious_keywords(text: str) -> List[str]:
-    """Finds flagged deception/conspiracy trigger words."""
+    """
+    Returns ONLY hard deception/misinformation trigger phrases found in text.
+    
+    Intentionally conservative list: words like 'breaking', 'truth', 'secret',
+    'warning', 'scandal', and 'exposed' are EXCLUDED because they appear daily
+    in legitimate journalism and their presence does not predict misinformation.
+    """
     text_lower = text.lower()
-    return [kw for kw in SUSPICIOUS_KEYWORD_PATTERNS if kw in text_lower]
+    return [kw for kw in DECEPTION_TIER1 + DECEPTION_TIER2 if kw in text_lower]
 
+
+# ─── MASTER ANALYSIS RUNNER ────────────────────────────────────────────────────
 
 def analyze_linguistic_signals(text: str) -> Tuple[LinguisticSignals, List[NamedEntity], Any]:
     """Runs complete deterministic linguistic evaluation pipeline."""

@@ -73,3 +73,82 @@ def test_aggregate_verdict_deterministic_output():
     assert fake1 == fake2
     assert conf1 == conf2
     assert cred1 >= 60.0
+
+
+# ─── FALSE POSITIVE REGRESSION TESTS ──────────────────────────────────────────
+
+def _make_ling(text: str) -> LinguisticSignals:
+    """Helper: build LinguisticSignals from raw text."""
+    from backend.services.linguistic import (
+        compute_sentiment, compute_clickbait, compute_bias,
+        compute_readability, compute_writing_style, compute_virality_proxy,
+        extract_suspicious_keywords,
+    )
+    sent  = compute_sentiment(text)
+    cb    = compute_clickbait(text)
+    bias  = compute_bias(text)
+    read  = compute_readability(text)
+    style = compute_writing_style(text)
+    vir   = compute_virality_proxy(cb.score, sent.fear_pct, sent.negative_pct)
+    kw    = extract_suspicious_keywords(text)
+    return LinguisticSignals(
+        sentiment=sent, bias=bias, clickbait=cb,
+        virality_risk=vir, readability=read, writing_style=style,
+        triggered_keywords=kw,
+    )
+
+
+def test_no_false_positive_on_breaking_news():
+    """BREAKING NEWS headlines should NOT be classified as FAKE."""
+    text = "BREAKING: NASA announces new Artemis moon landing mission for 2026 following congressional approval."
+    ling = _make_ling(text)
+    _, legacy, cred, fake, _, _ = compute_aggregate_verdict([], ling)
+    assert legacy == "REAL", f"Breaking news falsely classified as {legacy}"
+    assert cred >= 60.0, f"Credibility too low for legit news: {cred}"
+
+
+def test_no_false_positive_on_truth_word():
+    """The word 'truth' in a journalistic context should NOT trigger deception flags."""
+    text = "The government confirmed the truth about the new policy changes affecting workers."
+    ling = _make_ling(text)
+    assert "truth" not in ling.triggered_keywords, "'truth' should not be a deception keyword"
+    _, legacy, cred, _, _, _ = compute_aggregate_verdict([], ling)
+    assert legacy == "REAL", f"Legit sentence with 'truth' classified as {legacy}"
+
+
+def test_no_false_positive_on_scientific_news():
+    """Scientific peer-reviewed news should not be flagged as fake."""
+    text = "Researchers at Oxford published peer-reviewed findings on malaria vaccine efficacy showing 78% protection."
+    ling = _make_ling(text)
+    _, legacy, cred, fake, _, _ = compute_aggregate_verdict([], ling)
+    assert legacy == "REAL", f"Scientific news classified as {legacy}"
+    assert cred >= 65.0
+
+
+def test_disinfo_detected_tier1():
+    """Clear misinformation patterns (illuminati, new world order, etc.) should score as suspicious/fake."""
+    text = "The illuminati new world order globalist plot is destroying our country. Wake up sheeple!"
+    ling = _make_ling(text)
+    assert len(ling.triggered_keywords) >= 2, "Should detect multiple deception keywords"
+    _, legacy, cred, fake, _, _ = compute_aggregate_verdict([], ling)
+    assert legacy in ("SUSPICIOUS", "FAKE"), f"Clear disinfo not flagged: got {legacy}"
+
+
+def test_disinfo_detected_clickbait_extreme():
+    """Extreme clickbait with fake-cure language should be flagged."""
+    text = "SHOCKING: Secret miracle cure!!! What doctors are hiding! Banned forever! They don't want you to know!"
+    ling = _make_ling(text)
+    _, legacy, cred, fake, _, _ = compute_aggregate_verdict([], ling)
+    assert legacy in ("SUSPICIOUS", "FAKE"), f"Extreme clickbait not flagged: got {legacy}"
+    assert fake > 40
+
+
+def test_no_false_positive_on_negative_news():
+    """Negative news (disasters, crime, etc.) should not be flagged just for negative sentiment."""
+    text = "A deadly earthquake struck the coastal region, killing dozens of people. Emergency services are responding to the disaster."
+    ling = _make_ling(text)
+    kw = ling.triggered_keywords
+    assert len(kw) == 0, f"Negative news incorrectly triggered: {kw}"
+    _, legacy, cred, _, _, _ = compute_aggregate_verdict([], ling)
+    assert legacy == "REAL", f"Legitimate disaster news classified as {legacy}"
+

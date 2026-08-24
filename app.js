@@ -1,753 +1,767 @@
-// =========================================================
-// TruthLens AI — Evidence-Grounded Verification App Logic
-// =========================================================
+/**
+ * TruthLens AI — Client-Side Application v3
+ *
+ * Architecture:
+ *  - All API calls go to CONFIG.API_BASE (set in config.js)
+ *  - Multi-endpoint fallback: tries Render.com backend first, local server second
+ *  - Evidence matrix renders per-claim cards with supporting/contradicting sources
+ *  - No random numbers are used anywhere in this file
+ */
 
-const API = (typeof CONFIG !== 'undefined' && CONFIG.API_BASE)
-    ? CONFIG.API_BASE
-    : 'https://truthlens-1-ue36.onrender.com';
+/* ═══ CONFIG & CONSTANTS ════════════════════════════════════ */
 
-let lastData = null;
-
-// ─── DOM ELEMENTS ─────────────────────────────────────────
-const form               = document.getElementById('analyze-form');
-const analyzeBtn         = document.getElementById('analyze-btn');
-const spinner            = document.getElementById('loading-spinner');
-const btnText            = document.querySelector('.btn-text');
-const resultsPanel       = document.getElementById('results-panel');
-const newsInput          = document.getElementById('news-input');
-const charCountEl        = document.getElementById('char-count');
-const wordCountLive      = document.getElementById('word-count-live');
-const readTimeEl         = document.getElementById('read-time');
-const clearInputBtn      = document.getElementById('clear-input-btn');
-const stepperCard        = document.getElementById('processing-stepper');
-const stepperFill        = document.getElementById('stepper-fill');
-const stepperHeadline    = document.getElementById('stepper-headline');
-
-// Sidebar Elements
-const sidebar            = document.getElementById('history-sidebar');
-const openSidebarBtn     = document.getElementById('open-sidebar-btn');
-const toggleSidebarBtn   = document.getElementById('toggle-sidebar-btn');
-const historyListEl      = document.getElementById('history-list');
-const clearHistoryBtn    = document.getElementById('clear-history-btn');
-const historyBadgeCount  = document.getElementById('history-badge-count');
-
-// Modal Elements
-const howItWorksBtn      = document.getElementById('how-it-works-btn');
-const methodologyModal   = document.getElementById('methodology-modal');
-const closeModalBtn      = document.getElementById('close-modal-btn');
-
-// Sample Presets Dictionary
-const SAMPLE_PRESETS = {
-    fake: "BREAKING: Secret documents leak revealing that global health authorities and governments engineered a covert energy conspiracy. Anonymous whistleblowers claim mainstream media is completely censoring this shocking truth!",
-    real: "Scientists at the International Renewable Energy Agency published peer-reviewed findings in Nature demonstrating a 32 percent efficiency improvement in perovskite solar cells across twelve independent laboratory trials.",
-    clickbait: "You WON'T BELIEVE what this celebrity did at the private gala! Doctors are STUNNED by this ONE simple trick that eliminates aging instantly! What happened next will leave you completely SPEECHLESS!",
-    bias: "Radical partisan ideologues in Congress are aggressively pushing a corrupt, socialist legislative agenda designed to systematically dismantle constitutional liberties across our nation."
+const SAMPLES = {
+  real: `NASA's James Webb Space Telescope has captured detailed images of a distant galaxy, revealing early star formation that occurred approximately 13 billion years ago. Scientists at the Space Telescope Science Institute published these findings in the Astrophysical Journal.`,
+  breaking: `BREAKING: The Federal Reserve announced an emergency interest rate adjustment following stronger-than-expected inflation data. The central bank confirmed the decision was reached by unanimous vote of the Federal Open Market Committee.`,
+  clickbait: `You WON'T BELIEVE what happened next!! Scientists are SHOCKED by this incredible discovery that will change EVERYTHING you know about nutrition. Click to reveal the SECRET they don't want you to see!!!`,
+  disinfo: `URGENT: The illuminati globalist plot to destroy our country through new world order chemtrails is exposed. What doctors are hiding: miracle cure discovered. Wake up sheeple! Banned video reveals it all!`
 };
 
-// ─── LIVE COUNTERS & INPUT METRICS ────────────────────────
-function updateInputCounters() {
-    const text = newsInput.value;
-    const len = text.length;
-    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-    
-    charCountEl.textContent = len;
-    wordCountLive.textContent = words;
-    
-    const readingSecs = Math.max(1, Math.round(words / 3.3));
-    readTimeEl.textContent = words > 0 ? (readingSecs < 60 ? `${readingSecs}s` : `${Math.round(readingSecs/60)}m`) : '0s';
-}
-
-newsInput.addEventListener('input', updateInputCounters);
-
-if (clearInputBtn) {
-    clearInputBtn.addEventListener('click', () => {
-        newsInput.value = '';
-        updateInputCounters();
-        newsInput.focus();
-    });
-}
-
-// ─── PRESET CHIPS & DEMO BUTTONS ──────────────────────────
-document.querySelectorAll('.preset-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-        const type = chip.getAttribute('data-sample');
-        if (SAMPLE_PRESETS[type]) {
-            newsInput.value = SAMPLE_PRESETS[type];
-            updateInputCounters();
-            newsInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    });
-});
-
-const loadSampleBtn = document.getElementById('load-sample-btn');
-if (loadSampleBtn) {
-    loadSampleBtn.addEventListener('click', () => {
-        newsInput.value = SAMPLE_PRESETS.fake;
-        updateInputCounters();
-        newsInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-}
-
-// ─── TABS SWITCHING ───────────────────────────────────────
-const tabText = document.getElementById('tab-text');
-const tabMedia = document.getElementById('tab-media');
-const tabTextContent = document.getElementById('tab-text-content');
-const tabMediaContent = document.getElementById('tab-media-content');
-
-if (tabText && tabMedia) {
-    tabText.addEventListener('click', () => {
-        tabText.classList.add('active');
-        tabText.setAttribute('aria-selected', 'true');
-        tabMedia.classList.remove('active');
-        tabMedia.setAttribute('aria-selected', 'false');
-        tabTextContent.classList.add('active');
-        tabTextContent.classList.remove('hidden');
-        tabMediaContent.classList.remove('active');
-        tabMediaContent.classList.add('hidden');
-    });
-
-    tabMedia.addEventListener('click', () => {
-        tabMedia.classList.add('active');
-        tabMedia.setAttribute('aria-selected', 'true');
-        tabText.classList.remove('active');
-        tabText.setAttribute('aria-selected', 'false');
-        tabMediaContent.classList.add('active');
-        tabMediaContent.classList.remove('hidden');
-        tabTextContent.classList.remove('active');
-        tabTextContent.classList.add('hidden');
-    });
-}
-
-// ─── URL INGESTION (SERVER-SIDE SSRF GUARDED) ─────────────
-const fetchUrlBtn = document.getElementById('fetch-url-btn');
-const urlInput = document.getElementById('url-input');
-
-if (fetchUrlBtn) {
-    fetchUrlBtn.addEventListener('click', async () => {
-        const url = urlInput.value.trim();
-        if (!url) { alert('Please enter a valid web article URL.'); return; }
-        
-        fetchUrlBtn.disabled = true;
-        fetchUrlBtn.textContent = 'Extracting article...';
-
-        const endpoints = [
-            API,
-            'https://truthlens-1-ue36.onrender.com',
-            'http://127.0.0.1:8000',
-            window.location.origin
-        ];
-        const unique = [...new Set(endpoints.filter(Boolean))];
-
-        let extractedData = null;
-        for (const base of unique) {
-            try {
-                const res = await fetch(`${base}/api/url/extract`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
-                });
-                if (res.ok) {
-                    extractedData = await res.json();
-                    break;
-                }
-            } catch (err) {
-                // try fallback
-            }
-        }
-
-        fetchUrlBtn.disabled = false;
-        fetchUrlBtn.textContent = 'Fetch & Analyze';
-
-        if (extractedData && extractedData.success && extractedData.text) {
-            newsInput.value = (extractedData.title ? `[${extractedData.title}]\n\n` : '') + extractedData.text;
-            updateInputCounters();
-            tabText.click();
-            form.dispatchEvent(new Event('submit'));
-        } else {
-            alert(extractedData?.error || 'Unable to extract web content from target URL. Please paste text directly.');
-        }
-    });
-}
-
-// ─── IMAGE & OCR INGESTION ────────────────────────────────
-const dropZone = document.getElementById('media-drop-zone');
-const fileInput = document.getElementById('media-file-input');
-const mediaPreview = document.getElementById('media-preview');
-const previewImg = document.getElementById('preview-img');
-const removeMediaBtn = document.getElementById('remove-media-btn');
-const ocrStatusTag = document.getElementById('ocr-status-tag');
-
-if (dropZone && fileInput) {
-    dropZone.addEventListener('click', () => fileInput.click());
-    
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
-    
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-    
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) handleFileUpload(e.dataTransfer.files[0]);
-    });
-    
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) handleFileUpload(fileInput.files[0]);
-    });
-}
-
-async function handleFileUpload(file) {
-    if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file (PNG, JPG, WEBP).');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        previewImg.src = e.target.result;
-        mediaPreview.classList.remove('hidden');
-        dropZone.classList.add('hidden');
-    };
-    reader.readAsDataURL(file);
-
-    if (ocrStatusTag) ocrStatusTag.textContent = 'Running OCR extraction...';
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const endpoints = [
-        API,
-        'https://truthlens-1-ue36.onrender.com',
-        'http://127.0.0.1:8000',
-        window.location.origin
-    ];
-    const unique = [...new Set(endpoints.filter(Boolean))];
-
-    let ocrResult = null;
-    for (const base of unique) {
-        try {
-            const res = await fetch(`${base}/api/ocr/extract`, {
-                method: 'POST',
-                body: formData
-            });
-            if (res.ok) {
-                ocrResult = await res.json();
-                break;
-            }
-        } catch (err) {
-            // try fallback
-        }
-    }
-
-    if (ocrResult && ocrResult.status === 'success' && ocrResult.text) {
-        if (ocrStatusTag) ocrStatusTag.textContent = `✓ OCR Extracted (${ocrResult.confidence}% confidence)`;
-        newsInput.value = ocrResult.text;
-        updateInputCounters();
-        tabText.click();
-    } else {
-        if (ocrStatusTag) ocrStatusTag.textContent = ocrResult?.note || 'OCR engine offline. Please paste text directly.';
-        alert(ocrResult?.note || 'OCR is not configured in this environment. Please paste article text directly.');
-    }
-}
-
-if (removeMediaBtn) {
-    removeMediaBtn.addEventListener('click', () => {
-        previewImg.src = '';
-        mediaPreview.classList.add('hidden');
-        dropZone.classList.remove('hidden');
-        fileInput.value = '';
-    });
-}
-
-// ─── SIDEBAR & MODAL CONTROLS ─────────────────────────────
-if (openSidebarBtn && sidebar) {
-    openSidebarBtn.addEventListener('click', () => sidebar.classList.add('open'));
-}
-
-if (toggleSidebarBtn && sidebar) {
-    toggleSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open'));
-}
-
-document.addEventListener('click', (e) => {
-    if (sidebar && sidebar.classList.contains('open')) {
-        if (!sidebar.contains(e.target) && !openSidebarBtn.contains(e.target)) {
-            sidebar.classList.remove('open');
-        }
-    }
-});
-
-if (howItWorksBtn && methodologyModal) {
-    howItWorksBtn.addEventListener('click', () => methodologyModal.classList.remove('hidden'));
-}
-
-if (closeModalBtn && methodologyModal) {
-    closeModalBtn.addEventListener('click', () => methodologyModal.classList.add('hidden'));
-}
-
-if (methodologyModal) {
-    methodologyModal.addEventListener('click', (e) => {
-        if (e.target === methodologyModal) methodologyModal.classList.add('hidden');
-    });
-}
-
-// ─── ANIMATED LOADING STEPPER ─────────────────────────────
-let stepperInterval = null;
-
-function startStepperAnimation() {
-    if (!stepperCard) return;
-    stepperCard.classList.remove('hidden');
-    let step = 1;
-    const steps = [
-        { pct: 25, title: '1. Declarative Claim Extraction & Sentence Boundary...' },
-        { pct: 50, title: '2. Multi-Source Evidence Query & Normalization...' },
-        { pct: 75, title: '3. Claim-Evidence Semantic NLI & Refutation Match...' },
-        { pct: 95, title: '4. Deterministic Scoring & Verdict Synthesis...' }
-    ];
-
-    document.querySelectorAll('.stepper-steps .step').forEach((s, idx) => {
-        s.classList.toggle('active', idx === 0);
-    });
-    stepperFill.style.width = '25%';
-    stepperHeadline.textContent = steps[0].title;
-
-    stepperInterval = setInterval(() => {
-        if (step < steps.length) {
-            stepperFill.style.width = steps[step].pct + '%';
-            stepperHeadline.textContent = steps[step].title;
-            const stepEl = document.getElementById(`step-${step + 1}`);
-            if (stepEl) stepEl.classList.add('active');
-            step++;
-        }
-    }, 600);
-}
-
-function stopStepperAnimation() {
-    if (stepperInterval) clearInterval(stepperInterval);
-    if (stepperCard) stepperCard.classList.add('hidden');
-}
-
-// ─── FORM SUBMIT WITH ASYNC REST ENDPOINTS ────────────────
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = newsInput.value.trim();
-    if (text.length < 10) {
-        alert('Please enter at least 10 characters to run forensic analysis.');
-        return;
-    }
-
-    analyzeBtn.disabled = true;
-    spinner.classList.remove('hidden');
-    btnText.textContent = 'Verifying Factual Claims...';
-    startStepperAnimation();
-
-    const endpoints = [
-        API,
-        'https://truthlens-1-ue36.onrender.com',
-        'http://127.0.0.1:8000',
-        window.location.origin
-    ];
-    const unique = [...new Set(endpoints.filter(Boolean))];
-
-    let data = null;
-
-    for (const base of unique) {
-        try {
-            const controller = new AbortController();
-            const tid = setTimeout(() => controller.abort(), 20000);
-            
-            // Try /api/analyze then fallback /analyze
-            let res = await fetch(`${base}/api/analyze`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text }),
-                signal: controller.signal
-            });
-
-            if (!res.ok && res.status !== 400 && res.status !== 413) {
-                res = await fetch(`${base}/analyze`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text }),
-                    signal: controller.signal
-                });
-            }
-
-            clearTimeout(tid);
-            if (res.ok) {
-                data = await res.json();
-                break;
-            }
-        } catch (err) {
-            console.warn(`[TruthLens] Endpoint ${base} unreached:`, err.message);
-        }
-    }
-
-    stopStepperAnimation();
-    analyzeBtn.disabled = false;
-    spinner.classList.add('hidden');
-    btnText.textContent = 'Run Evidence Analysis';
-
-    if (data && !data.error) {
-        lastData = { ...data, _inputText: text };
-        renderForensicResults(data, text);
-        fetchHistory();
-        fetchStats();
-    } else {
-        alert('❌ Unable to reach the analysis engine. If the cloud container is waking up, please wait a few seconds and try again!');
-    }
-});
-
-// ─── ANIMATED COUNT-UP NUMBER HELPER ──────────────────────
-function animateNumber(elementId, targetValue, duration = 1000) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    const start = 0;
-    const end = parseInt(targetValue, 10) || 0;
-    if (end === 0) { el.textContent = '0'; return; }
-    
-    const startTime = performance.now();
-    function update(time) {
-        const elapsed = time - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const current = Math.round(start + (end - start) * (1 - (1 - progress) * (1 - progress)));
-        el.textContent = current;
-        if (progress < 1) requestAnimationFrame(update);
-        else el.textContent = end;
-    }
-    requestAnimationFrame(update);
-}
-
-// ─── RENDER FORENSIC RESULTS & EVIDENCE MATRIX ────────────
-function renderForensicResults(d, text) {
-    resultsPanel.classList.remove('hidden');
-
-    // 1. Primary Scientific Verdict & Gauge
-    const cred = Math.round(d.credibility_score || 0);
-    const ring = document.getElementById('score-ring');
-    const circ = 2 * Math.PI * 42;
-    
-    ring.style.strokeDasharray = circ;
-    setTimeout(() => {
-        ring.style.strokeDashoffset = circ - (cred / 100) * circ;
-        ring.style.stroke = cred >= 65 ? '#10b981' : cred >= 45 ? '#f59e0b' : '#ef4444';
-    }, 50);
-
-    animateNumber('credibility-score', cred);
-    
-    // Primary Scientific Verdict Badge (SUPPORTED, CONTRADICTED, MIXED, UNVERIFIED)
-    const primaryBadge = document.getElementById('primary-verdict-badge');
-    const legacyBadge = document.getElementById('classification-badge');
-    const verdictBanner = document.getElementById('verdict-banner');
-    const pVerdict = (d.primary_verdict || 'UNVERIFIED').toUpperCase();
-    const lClass = (d.legacy_classification || 'UNKNOWN').toUpperCase();
-
-    if (primaryBadge) {
-        primaryBadge.textContent = pVerdict;
-        primaryBadge.className = `verdict-pill ${pVerdict.toLowerCase()}`;
-    }
-
-    if (legacyBadge) {
-        legacyBadge.textContent = `VERDICT: ${lClass}`;
-    }
-
-    if (verdictBanner) {
-        verdictBanner.className = `verdict-banner ${pVerdict.toLowerCase()}`;
-    }
-
-    const titleEl = document.getElementById('verdict-title');
-    if (titleEl) {
-        if (pVerdict === 'SUPPORTED') titleEl.textContent = 'Evidence Supports Core Assertions';
-        else if (pVerdict === 'CONTRADICTED') titleEl.textContent = 'Core Assertions Contradicted by Evidence';
-        else if (pVerdict === 'MIXED') titleEl.textContent = 'Mixed / Disputed Evidence Detected';
-        else titleEl.textContent = 'Unverified: Limited Independent Evidence';
-    }
-
-    const msgEl = document.getElementById('classification-message');
-    if (msgEl) msgEl.textContent = d.message || 'Forensic evaluation complete.';
-
-    const stag = document.getElementById('sentiment-tag');
-    if (stag && d.sentiment) stag.textContent = `${d.sentiment.tone}`;
-
-    // 2. Quick HUD Metrics
-    setText('word-count', d.text_length || text.split(/\s+/).length);
-    setText('fake-prob', (d.fake_probability || 0) + '%');
-    setText('confidence-metric', (d.confidence || 0) + '%');
-    setText('claims-count-val', d.claims ? d.claims.length : 0);
-
-    // 3. Render Factual Claim & Evidence Matrix Cards
-    const claimStack = document.getElementById('claim-cards-stack');
-    if (claimStack) {
-        if (d.claims && d.claims.length > 0) {
-            claimStack.innerHTML = d.claims.map((c, i) => {
-                const cVerdict = (c.verdict || 'UNVERIFIED').toUpperCase();
-                const evidenceHTML = (c.evidence && c.evidence.length > 0)
-                    ? c.evidence.map(ev => `
-                        <div class="evidence-subcard">
-                            <div class="evidence-source-bar">
-                                <a href="${ev.url}" target="_blank" rel="noopener noreferrer" class="evidence-link">
-                                    <span>🌐 ${ev.source_name}</span>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                                </a>
-                                <span class="authority-pill">${Math.round(ev.authority_score * 100)}% Authority</span>
-                            </div>
-                            <p class="evidence-snippet-text"><strong>${ev.title}:</strong> ${ev.snippet}</p>
-                        </div>
-                    `).join('')
-                    : `<div class="evidence-subcard"><p class="empty-state">No independent wire or knowledge entries matched this specific assertion.</p></div>`;
-
-                return `
-                    <div class="claim-card-unit">
-                        <div class="claim-header-row">
-                            <div style="display:flex; align-items:center; gap:0.6rem;">
-                                <span class="claim-id-tag">${c.claim_id || `#claim_${i+1}`}</span>
-                                <span class="claim-badge ${cVerdict.toLowerCase()}">${cVerdict}</span>
-                            </div>
-                            <span class="micro-stats">Confidence: ${Math.round(c.confidence || 50)}%</span>
-                        </div>
-                        <p class="claim-statement-text">"${c.text}"</p>
-                        <div class="claim-explanation-box">
-                            <strong>Diagnostic Finding:</strong> ${c.explanation || 'Evaluated against knowledge repositories.'}
-                        </div>
-                        <div class="evidence-subcards-list">
-                            <span class="section-micro-label">Citations & Evidence Retrieved</span>
-                            ${evidenceHTML}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            claimStack.innerHTML = `<div class="claim-card-unit"><p class="empty-state">No declarative factual claims extracted for external verification.</p></div>`;
-        }
-    }
-
-    // 4. Linguistic Risk Signals (Strictly Separated)
-    if (d.sentiment) {
-        setText('sentiment-tone-badge', d.sentiment.tone || 'Neutral');
-        setBar('bar-positive', d.sentiment.positive_pct);
-        setBar('bar-negative', d.sentiment.negative_pct);
-        setBar('bar-fear', d.sentiment.fear_pct);
-        setText('val-positive', d.sentiment.positive_pct + '%');
-        setText('val-negative', d.sentiment.negative_pct + '%');
-        setText('val-fear', d.sentiment.fear_pct + '%');
-    }
-
-    if (d.bias) {
-        setText('bias-leaning-badge', d.bias.leaning || 'Center');
-        const needle = document.getElementById('bias-needle');
-        if (needle) {
-            const left = d.bias.left_triggers ? d.bias.left_triggers.length : 0;
-            const right = d.bias.right_triggers ? d.bias.right_triggers.length : 0;
-            const pos = 50 + (right - left) * 12;
-            needle.style.left = Math.max(5, Math.min(95, pos)) + '%';
-        }
-        renderChips('bias-triggers', [
-            ...(d.bias.left_triggers || []),
-            ...(d.bias.right_triggers || []),
-            ...(d.bias.amplifiers || [])
-        ], 'trigger-chip');
-    }
-
-    if (d.clickbait) {
-        animateNumber('clickbait-score-val', d.clickbait.score || 0);
-        setText('clickbait-level', d.clickbait.level || 'Low');
-        const cStats = document.getElementById('clickbait-stats');
-        if (cStats) {
-            cStats.innerHTML = `${d.clickbait.caps_word_count || 0} ALL-CAPS · ${d.clickbait.exclamation_count || 0} exclamations · ${d.clickbait.question_count || 0} questions`;
-        }
-        setBar('clickbait-bar', d.clickbait.score);
-        renderChips('clickbait-triggers', d.clickbait.triggers || [], 'trigger-chip');
-    }
-
-    if (d.virality_risk) {
-        animateNumber('virality-score-val', d.virality_risk.score || 0);
-        setText('virality-risk-label', d.virality_risk.risk || 'Low');
-        setBar('virality-bar', d.virality_risk.score);
-        const vf = document.getElementById('virality-factors');
-        if (vf) {
-            vf.innerHTML = (d.virality_risk.velocity_factors || []).map(f =>
-                `<div class="factor-item">⚡ ${f}</div>`
-            ).join('');
-        }
-    }
-
-    if (d.readability) {
-        animateNumber('readability-score-val', d.readability.score || 0);
-        setText('readability-grade', d.readability.grade || 'Standard');
-        setBar('readability-bar', Math.min(100, (d.readability.score || 0) * 1.1));
-        const rs = document.getElementById('readability-stats');
-        if (rs) {
-            rs.innerHTML = `
-                <p class="micro-stats"><strong>${d.readability.sentence_count || 0}</strong> sentences · avg <strong>${d.readability.avg_sentence_length || 0}</strong> words/sentence</p>
-            `;
-        }
-    }
-
-    if (d.writing_style) {
-        setText('style-formality', d.writing_style.formality || 'Standard');
-        const sg = document.getElementById('style-grid');
-        if (sg) {
-            sg.innerHTML = `
-                <div class="stat-item"><span class="stat-label">Avg Word Length</span><span class="stat-value">${d.writing_style.avg_word_length || 0}</span></div>
-                <div class="stat-item"><span class="stat-label">Passive Voice</span><span class="stat-value">${d.writing_style.passive_voice_count || 0}</span></div>
-                <div class="stat-item"><span class="stat-label">Direct Quotes</span><span class="stat-value">${d.writing_style.quote_count || 0}</span></div>
-                <div class="stat-item"><span class="stat-label">Numeric Claims</span><span class="stat-value">${d.writing_style.number_count || 0}</span></div>
-                <div class="stat-item"><span class="stat-label">Hyperlinks</span><span class="stat-value">${d.writing_style.url_count || 0}</span></div>
-                <div class="stat-item"><span class="stat-label">Sentences</span><span class="stat-value">${d.writing_style.sentence_count || 0}</span></div>
-            `;
-        }
-    }
-
-    // Entities
-    const entityBox = document.getElementById('entity-tags');
-    if (entityBox) {
-        const ents = d.entities || d.evidence || [];
-        if (ents.length > 0) {
-            entityBox.innerHTML = ents.map(e =>
-                `<span class="entity-chip ${e.label}">${e.text} <small>${e.label}</small></span>`
-            ).join('');
-        } else {
-            entityBox.innerHTML = '<span class="empty-state">No named entities detected</span>';
-        }
-    }
-
-    // Triggered Keywords
-    renderChips('keyword-chips', d.triggered_keywords || [], 'keyword-chip');
-
-    // Raw JSON Report
-    const desc = document.getElementById('description-text');
-    if (desc) desc.textContent = JSON.stringify(d, null, 2);
-
-    // Smooth scroll down to results
-    resultsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// ─── UTILITY HELPERS ──────────────────────────────────────
-function setText(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-}
-
-function setBar(id, pct) {
-    const el = document.getElementById(id);
-    if (el) setTimeout(() => { el.style.width = Math.min(100, Math.max(0, pct || 0)) + '%'; }, 100);
-}
-
-function renderChips(containerId, items, chipClass) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
-    if (!items || items.length === 0) {
-        el.innerHTML = '<span class="empty-state">None detected</span>';
-    } else {
-        el.innerHTML = items.map(item =>
-            `<span class="${chipClass}">${item}</span>`
-        ).join('');
-    }
-}
-
-// ─── HISTORY & STATS API ──────────────────────────────────
-async function fetchHistory() {
-    try {
-        const res = await fetch(`${API}/api/history`);
-        const data = await res.json();
-        if (data.history && data.history.length > 0) {
-            historyListEl.innerHTML = data.history.map(h => `
-                <li class="history-item" onclick="loadHistoryItem('${h.snippet.replace(/'/g, "\\'")}')">
-                    <div class="history-top">
-                        <span class="history-badge ${(h.primary_verdict || h.classification).toLowerCase()}">${h.primary_verdict || h.classification}</span>
-                        <span class="history-time">${new Date(h.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                    </div>
-                    <div class="history-snippet">${h.snippet}</div>
-                    <div class="history-score">Credibility: ${Math.round(h.credibility_score)}%</div>
-                </li>
-            `).join('');
-            if (clearHistoryBtn) clearHistoryBtn.classList.remove('hidden');
-        } else {
-            historyListEl.innerHTML = `
-                <div class="history-empty">
-                    <div class="empty-icon">📂</div>
-                    <p>No previous scans logged yet.<br>Analyze an article to start logging history.</p>
-                </div>
-            `;
-            if (clearHistoryBtn) clearHistoryBtn.classList.add('hidden');
-        }
-    } catch (e) {
-        console.warn('History fetch fallback:', e.message);
-    }
-}
-
-window.loadHistoryItem = function(snippet) {
-    newsInput.value = snippet;
-    updateInputCounters();
-    sidebar.classList.remove('open');
-    newsInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+const API_ENDPOINTS = [
+  typeof CONFIG !== 'undefined' ? CONFIG.API_BASE : null,
+  'http://127.0.0.1:8000',
+].filter(Boolean);
+
+const STEP_MSGS = [
+  'Extracting factual claims…',
+  'Querying evidence repositories…',
+  'Running NLI evaluation…',
+  'Synthesizing credibility score…',
+];
+
+/* ═══ STATE ═════════════════════════════════════════════════ */
+
+let latestResult = null;
+let uploadedFile = null;
+let abortCtrl = null;
+
+/* ═══ DOM REFERENCES ════════════════════════════════════════ */
+
+const $ = id => document.getElementById(id);
+
+const ui = {
+  form:           $('analyze-form'),
+  textInput:      $('text-input'),
+  analyzeBtn:     $('analyze-btn'),
+  clearBtn:       $('clear-btn'),
+  progressCard:   $('progress-card'),
+  progressFill:   $('progress-fill'),
+  progressLabel:  $('progress-label'),
+  results:        $('results'),
+  verdictCard:    $('verdict-card'),
+  apiStatusPill:  $('api-status-pill'),
+  apiStatusText:  $('api-status-text'),
+  modal:          $('modal'),
+  sidebar:        $('sidebar'),
+  historyList:    $('history-list'),
+  charCount:      $('char-count'),
+  wordCount:      $('word-count'),
+  readTime:       $('read-time'),
+  urlInput:       $('url-input'),
+  fetchUrlBtn:    $('fetch-url-btn'),
+  dropZone:       $('drop-zone'),
+  fileInput:      $('file-input'),
 };
 
-async function fetchStats() {
+/* ═══ UTILITIES ═════════════════════════════════════════════ */
+
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const round1 = v => Math.round(v * 10) / 10;
+
+function fmtTime(date) {
+  return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function showToast(msg, type = 'info') {
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.textContent = msg;
+  Object.assign(t.style, {
+    position: 'fixed', bottom: '1.5rem', right: '1.5rem', zIndex: 9999,
+    background: type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#14b8a6',
+    color: '#fff', fontWeight: '700', fontSize: '.82rem',
+    padding: '.6rem 1.1rem', borderRadius: '8px',
+    boxShadow: '0 8px 24px rgba(0,0,0,.5)',
+    transform: 'translateY(20px)', opacity: '0',
+    transition: 'all .3s cubic-bezier(.16,1,.3,1)',
+  });
+  document.body.appendChild(t);
+  requestAnimationFrame(() => { t.style.transform = 'translateY(0)'; t.style.opacity = '1'; });
+  setTimeout(() => {
+    t.style.transform = 'translateY(10px)'; t.style.opacity = '0';
+    setTimeout(() => t.remove(), 350);
+  }, 2800);
+}
+
+/* ═══ API HEALTH CHECK ══════════════════════════════════════ */
+
+async function checkApiHealth() {
+  setStatus('checking');
+  for (const base of API_ENDPOINTS) {
     try {
-        const res = await fetch(`${API}/api/stats`);
-        const d = await res.json();
-        const total = d.total || 0;
-        setText('stat-total', total);
-        const b = d.breakdown || {};
-        setText('stat-real', b.REAL || 0);
-        setText('stat-sus', b.SUSPICIOUS || 0);
-        setText('stat-fake', b.FAKE || 0);
-        
-        if (historyBadgeCount) {
-            historyBadgeCount.style.display = total > 0 ? 'block' : 'none';
-        }
+      const r = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(8000) });
+      if (r.ok) {
+        const d = await r.json();
+        setStatus('ok', `Backend online · ${d.nlp_engine || 'NLP ready'}`);
+        return base;
+      }
+    } catch { /* try next */ }
+  }
+  setStatus('error', 'Backend offline — analysis unavailable');
+  return null;
+}
+
+function setStatus(state, msg) {
+  const pill = ui.apiStatusPill;
+  const dot = pill.querySelector('.dot');
+  const text = ui.apiStatusText;
+  pill.className = 'api-status-pill ' + (state === 'ok' ? 'ok' : state === 'error' ? 'error' : '');
+  dot.className = 'dot ' + (state === 'ok' ? 'dot-ok' : state === 'error' ? 'dot-error' : 'dot-checking');
+  text.textContent = msg || (state === 'checking' ? 'Connecting…' : state);
+}
+
+/* ═══ PROGRESS ══════════════════════════════════════════════ */
+
+let stepTimer = null;
+let stepIdx = 0;
+
+function startProgress() {
+  ui.progressCard.classList.remove('hidden');
+  ui.results.classList.add('hidden');
+  stepIdx = 0;
+  updateStep(0);
+  stepTimer = setInterval(() => {
+    stepIdx = Math.min(stepIdx + 1, STEP_MSGS.length - 1);
+    updateStep(stepIdx);
+  }, 2200);
+}
+
+function updateStep(i) {
+  ui.progressLabel.textContent = STEP_MSGS[i];
+  ui.progressFill.style.width = `${(i + 1) / STEP_MSGS.length * 90}%`;
+  ['ps1','ps2','ps3','ps4'].forEach((id, idx) => {
+    $(`ps${idx+1}`)?.classList.toggle('active', idx <= i);
+  });
+}
+
+function stopProgress() {
+  clearInterval(stepTimer);
+  ui.progressFill.style.width = '100%';
+  setTimeout(() => { ui.progressCard.classList.add('hidden'); }, 400);
+}
+
+/* ═══ API CALL ══════════════════════════════════════════════ */
+
+async function callAnalyzeApi(payload) {
+  abortCtrl = new AbortController();
+  const timeout = setTimeout(() => abortCtrl.abort(), 55000);
+
+  let lastErr;
+  for (const base of API_ENDPOINTS) {
+    try {
+      const r = await fetch(`${base}/api/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: abortCtrl.signal,
+      });
+      clearTimeout(timeout);
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ detail: r.statusText }));
+        throw new Error(err.detail || `HTTP ${r.status}`);
+      }
+      return await r.json();
     } catch (e) {
-        console.warn('Stats fetch fallback:', e.message);
+      lastErr = e;
+      if (e.name === 'AbortError') break;
     }
+  }
+  clearTimeout(timeout);
+  throw lastErr || new Error('All endpoints failed');
 }
 
-if (clearHistoryBtn) {
-    clearHistoryBtn.addEventListener('click', async () => {
-        if (!confirm('Are you sure you want to clear all history records?')) return;
-        try {
-            await fetch(`${API}/api/history`, { method: 'DELETE' });
-            fetchHistory();
-            fetchStats();
-        } catch (e) {
-            console.warn('Clear history failed:', e.message);
-        }
-    });
+/* ═══ MAIN ANALYZE FLOW ═════════════════════════════════════ */
+
+async function analyze(text) {
+  if (!text || text.trim().length < 15) {
+    showToast('Please enter at least 15 characters', 'error');
+    return;
+  }
+
+  setBtnLoading(ui.analyzeBtn, true);
+  startProgress();
+
+  try {
+    const result = await callAnalyzeApi({ text: text.trim() });
+    stopProgress();
+    latestResult = result;
+    renderResults(result);
+    persistHistory(result, text.trim());
+    loadHistory();
+  } catch (e) {
+    stopProgress();
+    if (e.name !== 'AbortError') {
+      showToast(`Analysis failed: ${e.message}`, 'error');
+    }
+  } finally {
+    setBtnLoading(ui.analyzeBtn, false);
+  }
 }
 
-// ─── EXPORT & SHARE ───────────────────────────────────────
-function exportReportJSON() {
-    if (!lastData) { alert('No analysis data available to export.'); return; }
-    const blob = new Blob([JSON.stringify(lastData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `truthlens-audit-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+function setBtnLoading(btn, on) {
+  const label = btn.querySelector('.btn-label');
+  const spin = btn.querySelector('.btn-spinner');
+  const icon = btn.querySelector('.btn-icon-svg');
+  if (label) label.textContent = on ? 'Analyzing…' : 'Analyze';
+  if (spin) spin.classList.toggle('hidden', !on);
+  if (icon) icon.style.display = on ? 'none' : '';
+  btn.disabled = on;
 }
 
-const dlBtn1 = document.getElementById('download-report-btn');
-const dlBtn2 = document.getElementById('download-report-btn2');
-const shareBtn = document.getElementById('share-btn');
+/* ═══ RENDER RESULTS ════════════════════════════════════════ */
 
-if (dlBtn1) dlBtn1.addEventListener('click', exportReportJSON);
-if (dlBtn2) dlBtn2.addEventListener('click', exportReportJSON);
+function renderResults(d) {
+  ui.results.classList.remove('hidden');
 
-if (shareBtn) {
-    shareBtn.addEventListener('click', () => {
-        if (!lastData) { alert('Please run an analysis first.'); return; }
-        const summary = `🔍 TruthLens Evidence Summary:\n• Primary Verdict: ${lastData.primary_verdict}\n• Credibility Score: ${lastData.credibility_score}%\n• Evidence Confidence: ${lastData.confidence}%\n• Claims Extracted: ${lastData.claims ? lastData.claims.length : 0}\n• Verified via: https://dilipkumarprudhvi-a11y.github.io/truthlens/`;
-        navigator.clipboard.writeText(summary).then(() => {
-            const span = shareBtn.querySelector('span');
-            if (span) span.textContent = '✓ Summary Copied!';
-            setTimeout(() => { if (span) span.textContent = 'Share Summary'; }, 2200);
+  // Verdict card
+  renderVerdictCard(d);
+
+  // Claims & Evidence
+  renderClaimsSection(d.claims || []);
+
+  // Linguistic signals
+  const ling = d.linguistic_signals || {};
+  renderSentiment(d.sentiment || ling.sentiment, ling.triggered_keywords || d.triggered_keywords || []);
+  renderClickbait(d.clickbait || ling.clickbait);
+  renderBias(d.bias || ling.bias);
+  renderVirality(d.virality_risk || ling.virality_risk);
+  renderReadability(d.readability || ling.readability);
+  renderWritingStyle(d.writing_style || ling.writing_style);
+  renderEntities(d.entities || d.evidence || []);
+  renderFlags(ling.triggered_keywords || d.triggered_keywords || []);
+  renderJson(d);
+
+  ui.results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* Verdict card */
+function renderVerdictCard(d) {
+  const verdict = (d.primary_verdict || 'UNVERIFIED').toLowerCase();
+  const legacy  = (d.legacy_classification || 'SUSPICIOUS').toUpperCase();
+  const cred    = d.credibility_score || 50;
+  const fake    = d.fake_probability || 50;
+
+  // Gauge ring (circumference = 2π×42 ≈ 264)
+  const dashOffset = 264 - (264 * clamp(cred, 0, 100)) / 100;
+  const ring = $('gauge-ring');
+  ring.style.strokeDashoffset = dashOffset;
+  const gaugeColor = cred >= 65 ? '#10b981' : cred >= 45 ? '#f59e0b' : '#ef4444';
+  ring.style.stroke = gaugeColor;
+  $('gauge-val').textContent = Math.round(cred);
+
+  // Card coloring
+  ui.verdictCard.className = `verdict-card ${verdict}`;
+
+  // Primary badge
+  const pb = $('primary-badge');
+  pb.className = `verdict-badge ${verdict}`;
+  pb.textContent = d.primary_verdict || 'UNVERIFIED';
+
+  // Legacy badge
+  const lb = $('legacy-badge');
+  lb.textContent = `Legacy: ${legacy}`;
+  lb.style.color = legacy === 'REAL' ? '#34d399' : legacy === 'FAKE' ? '#f87171' : '#fbbf24';
+
+  // Tone badge
+  const tone = (d.sentiment || {}).tone || (d.linguistic_signals?.sentiment || {}).tone || '';
+  $('tone-badge').textContent = tone || '—';
+
+  // Headline and message
+  const headlines = {
+    SUPPORTED:    'Content Appears Credible',
+    CONTRADICTED: 'Content Contradicted by Evidence',
+    MIXED:        'Mixed Signals — Partial Verification',
+    UNVERIFIED:    'Insufficient Evidence to Verify',
+  };
+  $('verdict-headline').textContent = headlines[d.primary_verdict] || 'Analysis Complete';
+  $('verdict-msg').textContent = d.message || '—';
+
+  // Metrics
+  $('vm-fake').textContent = `${fake}%`;
+  $('vm-conf').textContent = `${d.confidence || 0}%`;
+  $('vm-words').textContent = (d.text_length || 0).toLocaleString();
+  $('vm-claims').textContent = (d.claims || []).length;
+
+  const fakeEl = $('vm-fake');
+  fakeEl.style.color = fake > 60 ? '#ef4444' : fake > 40 ? '#f59e0b' : '#10b981';
+}
+
+/* Claims & evidence matrix */
+function renderClaimsSection(claims) {
+  const container = $('claims-container');
+  if (!claims.length) {
+    container.innerHTML = '<div class="claim-card"><p class="no-evidence">No structured factual claims were extracted from this content.</p></div>';
+    return;
+  }
+
+  container.innerHTML = claims.map((claim, i) => {
+    const vc = (claim.verdict || 'UNVERIFIED').toLowerCase();
+    const ev = claim.evidence || [];
+    const evHtml = ev.length
+      ? ev.map(e => `
+        <div class="evidence-card">
+          <div class="evidence-top">
+            <a href="${escHtml(e.url)}" target="_blank" rel="noopener" class="evidence-link">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              ${escHtml(e.title || e.source_name)}
+            </a>
+            <span class="authority-tag">${e.source_name} · Auth: ${Math.round((e.authority_score || 0) * 100)}%</span>
+          </div>
+          <p class="evidence-snippet">${escHtml(e.snippet || 'No snippet available.')}</p>
+        </div>`).join('')
+      : `<p class="no-evidence">No matching evidence found in Wikipedia, DuckDuckGo, or configured fact-check APIs for this claim.</p>`;
+
+    return `
+      <div class="claim-card">
+        <div class="claim-header">
+          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+            <span class="claim-id">CLAIM ${String(i + 1).padStart(2, '0')}</span>
+            <span class="claim-verdict cv-${vc}">${claim.verdict}</span>
+            <span class="claim-verdict" style="background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text-3);font-size:.68rem">Confidence: ${claim.confidence || 0}%</span>
+          </div>
+        </div>
+        <p class="claim-text">"${escHtml(claim.text)}"</p>
+        <div class="claim-explanation">${escHtml(claim.explanation || 'No explanation available.')}</div>
+        ${ev.length ? `<p class="evidence-label">${ev.length} evidence source${ev.length > 1 ? 's' : ''} retrieved</p>` : ''}
+        <div class="evidence-list">${evHtml}</div>
+      </div>`;
+  }).join('');
+}
+
+/* Sentiment */
+function renderSentiment(s, flags) {
+  if (!s) return;
+  $('badge-sentiment').textContent = s.tone || '—';
+  const mContainer = $('meters-sentiment');
+  mContainer.innerHTML = [
+    { label: 'Positive Tone', val: s.positive_pct || 0, cls: 'green' },
+    { label: 'Negative Tone', val: s.negative_pct || 0, cls: 'amber' },
+    { label: 'Fear / Alarm',  val: s.fear_pct || 0,     cls: 'red' },
+  ].map(m => `
+    <div class="meter">
+      <div class="meter-meta"><span>${m.label}</span><span class="meter-val">${m.val}%</span></div>
+      <div class="track"><div class="bar ${m.cls}" style="width:${m.val}%"></div></div>
+    </div>`).join('');
+}
+
+/* Clickbait */
+function renderClickbait(c) {
+  if (!c) return;
+  const score = c.score || 0;
+  $('badge-clickbait').textContent = c.level || '—';
+  $('score-clickbait').textContent = score;
+  const barCls = score >= 70 ? 'red' : score >= 45 ? 'amber' : 'teal';
+  $('bar-clickbait').className = `bar ${barCls}`;
+  $('bar-clickbait').style.width = `${score}%`;
+
+  const chips = $('chips-clickbait');
+  const trig = c.triggers || [];
+  chips.innerHTML = trig.length
+    ? trig.map(t => `<span class="c-chip flag">${escHtml(t)}</span>`).join('')
+    : '<span class="empty-note">No clickbait triggers found</span>';
+}
+
+/* Bias */
+function renderBias(b) {
+  if (!b) return;
+  $('badge-bias').textContent = b.leaning || 'Center';
+  const needle = $('bias-needle');
+  const ratio = clamp(b.balance_ratio || 0.5, 0, 1);
+  needle.style.left = `${ratio * 100}%`;
+
+  const left = (b.left_triggers || []).map(t => `<span class="c-chip">${escHtml(t)}</span>`).join('');
+  const right = (b.right_triggers || []).map(t => `<span class="c-chip">${escHtml(t)}</span>`).join('');
+  $('chips-bias').innerHTML = left + right || '<span class="empty-note">No strong partisan vocabulary detected</span>';
+}
+
+/* Virality */
+function renderVirality(v) {
+  if (!v) return;
+  const score = v.score || 0;
+  $('badge-virality').textContent = v.risk || '—';
+  $('score-virality').textContent = score;
+  const barCls = score >= 65 ? 'red' : score >= 35 ? 'amber' : 'teal';
+  $('bar-virality').className = `bar ${barCls}`;
+  $('bar-virality').style.width = `${score}%`;
+  $('factors-virality').innerHTML = (v.velocity_factors || [])
+    .map(f => `<div class="factor-item">• ${escHtml(f)}</div>`).join('');
+}
+
+/* Readability */
+function renderReadability(r) {
+  if (!r) return;
+  const score = r.score || 0;
+  $('badge-readability').textContent = r.grade || '—';
+  $('score-readability').textContent = score;
+  $('bar-readability').style.width = `${score}%`;
+  $('read-stats').innerHTML = `${r.sentence_count || 0} sentences · avg ${r.avg_sentence_length || 0} words/sentence`;
+}
+
+/* Writing Style */
+function renderWritingStyle(w) {
+  if (!w) return;
+  $('badge-style').textContent = w.formality || '—';
+  $('style-grid').innerHTML = [
+    { l: 'Formality',     v: w.formality || '—' },
+    { l: 'Avg Word Len',  v: w.avg_word_length || '—' },
+    { l: 'Passive Voice', v: w.passive_voice_count ?? '—' },
+    { l: 'Direct Quotes', v: w.quote_count ?? '—' },
+    { l: 'Statistics',    v: w.number_count ?? '—' },
+    { l: 'URLs Cited',    v: w.url_count ?? '—' },
+  ].map(i => `<div class="sg-item"><span class="sg-label">${i.l}</span><span class="sg-val">${i.v}</span></div>`).join('');
+}
+
+/* Entities */
+function renderEntities(entities) {
+  const chips = $('chips-entities');
+  if (!entities.length) {
+    chips.innerHTML = '<span class="empty-note">No named entities detected (spaCy unavailable or text too short)</span>';
+    return;
+  }
+  chips.innerHTML = entities.map(e => `
+    <span class="ent-chip ${escHtml(e.label)}">
+      ${escHtml(e.text)} <small>${escHtml(e.label)}</small>
+    </span>`).join('');
+}
+
+/* Deception flags */
+function renderFlags(flags) {
+  const chips = $('chips-flags');
+  if (!flags.length) {
+    chips.innerHTML = '<span class="empty-note">✓ No hard deception trigger patterns detected</span>';
+    return;
+  }
+  chips.innerHTML = flags.map(f => `<span class="c-chip flag">🚩 ${escHtml(f)}</span>`).join('');
+}
+
+/* JSON */
+function renderJson(d) {
+  $('json-output').textContent = JSON.stringify(d, null, 2);
+}
+
+/* ═══ URL FETCH ════════════════════════════════════════════ */
+
+async function fetchAndAnalyzeUrl(url) {
+  if (!url || !url.startsWith('http')) {
+    showToast('Please enter a valid http/https URL', 'error');
+    return;
+  }
+
+  const btn = ui.fetchUrlBtn;
+  setBtnLoading(btn, true);
+  startProgress();
+
+  try {
+    let base;
+    for (const ep of API_ENDPOINTS) {
+      try {
+        const r = await fetch(`${ep}/api/url/extract`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+          signal: AbortSignal.timeout(25000),
         });
-    });
+        if (r.ok) { const d = await r.json(); base = ep; if (d.text) {
+          stopProgress();
+          setBtnLoading(btn, false);
+          ui.textInput.value = d.text.slice(0, 25000);
+          switchTab('text');
+          updateCounts();
+          showToast(`Article extracted: ${d.length?.toLocaleString() || '?'} chars`, 'success');
+          await analyze(d.text.slice(0, 25000));
+          return;
+        } }
+      } catch { /* try next */ }
+    }
+    throw new Error('Could not fetch article');
+  } catch (e) {
+    stopProgress();
+    showToast(`URL fetch failed: ${e.message}`, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
 }
 
-// ─── INITIALIZE ───────────────────────────────────────────
-updateInputCounters();
-fetchHistory();
-fetchStats();
+/* ═══ OCR ══════════════════════════════════════════════════ */
+
+async function ocrAndAnalyze(file) {
+  const form = new FormData();
+  form.append('image', file);
+
+  startProgress();
+  try {
+    for (const ep of API_ENDPOINTS) {
+      try {
+        const r = await fetch(`${ep}/api/ocr/extract`, { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
+        if (r.ok) {
+          const d = await r.json();
+          stopProgress();
+          if (d.text) {
+            ui.textInput.value = d.text.slice(0, 25000);
+            switchTab('text');
+            updateCounts();
+            showToast(`OCR complete — ${d.text.length} chars extracted`, 'success');
+            await analyze(d.text);
+          } else { showToast('OCR returned no text', 'error'); }
+          return;
+        }
+      } catch { /* try next */ }
+    }
+    throw new Error('OCR service unreachable');
+  } catch (e) {
+    stopProgress();
+    showToast(`OCR failed: ${e.message}`, 'error');
+  }
+}
+
+/* ═══ HISTORY ══════════════════════════════════════════════ */
+
+function persistHistory(result, text) {
+  const stored = JSON.parse(localStorage.getItem('tl_history') || '[]');
+  const item = {
+    id: result.scan_id,
+    timestamp: result.created_at || new Date().toISOString(),
+    snippet: text.slice(0, 120),
+    classification: result.legacy_classification,
+    primary_verdict: result.primary_verdict,
+    credibility_score: result.credibility_score,
+    fake_probability: result.fake_probability,
+  };
+  stored.unshift(item);
+  localStorage.setItem('tl_history', JSON.stringify(stored.slice(0, 50)));
+}
+
+function loadHistory() {
+  const stored = JSON.parse(localStorage.getItem('tl_history') || '[]');
+  const list = ui.historyList;
+
+  if (!stored.length) {
+    list.innerHTML = '<li style="font-size:.8rem;color:var(--text-3);text-align:center;padding:1rem">No scans yet</li>';
+    updateStats([], $('s-total'), $('s-real'), $('s-sus'), $('s-fake'));
+    $('clear-history-btn').classList.add('hidden');
+    return;
+  }
+
+  $('clear-history-btn').classList.remove('hidden');
+  list.innerHTML = stored.map(item => `
+    <li class="history-item" data-snippet="${escHtml(item.snippet)}">
+      <div class="hi-top">
+        <span class="hi-badge ${(item.classification || '').toLowerCase()}">${item.classification}</span>
+        <span class="hi-time">${fmtTime(item.timestamp)}</span>
+      </div>
+      <p class="hi-snippet">${escHtml(item.snippet)}</p>
+      <p class="hi-score">Credibility: ${item.credibility_score}% · Deception: ${item.fake_probability}%</p>
+    </li>`).join('');
+
+  updateStats(stored, $('s-total'), $('s-real'), $('s-sus'), $('s-fake'));
+  attachHistoryClicks();
+}
+
+function updateStats(items, total, real, sus, fake) {
+  total.textContent = items.length;
+  real.textContent  = items.filter(i => i.classification === 'REAL').length;
+  sus.textContent   = items.filter(i => i.classification === 'SUSPICIOUS').length;
+  fake.textContent  = items.filter(i => i.classification === 'FAKE').length;
+}
+
+function attachHistoryClicks() {
+  ui.historyList.querySelectorAll('.history-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const snip = el.dataset.snippet;
+      if (snip) {
+        ui.textInput.value = snip;
+        switchTab('text');
+        updateCounts();
+        closeSidebar();
+        ui.textInput.focus();
+      }
+    });
+  });
+}
+
+/* ═══ TABS ══════════════════════════════════════════════════ */
+
+function switchTab(name) {
+  ['text', 'url', 'img'].forEach(n => {
+    const tab = $(`tab-${n}`);
+    const panel = $(`panel-${n}`);
+    const isActive = n === name;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', String(isActive));
+    panel.classList.toggle('hidden', !isActive);
+  });
+}
+
+document.getElementById('tab-text')?.addEventListener('click', () => switchTab('text'));
+document.getElementById('tab-url')?.addEventListener('click',  () => switchTab('url'));
+document.getElementById('tab-img')?.addEventListener('click',  () => switchTab('img'));
+
+/* ═══ COUNTER ═══════════════════════════════════════════════ */
+
+function updateCounts() {
+  const text = ui.textInput.value;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const chars = text.length;
+  ui.charCount.textContent = chars.toLocaleString();
+  ui.wordCount.textContent = words.toLocaleString();
+  const mins = Math.ceil(words / 200);
+  ui.readTime.textContent = words > 30 ? `~${mins} min read` : '';
+  ui.analyzeBtn.disabled = chars < 15 || chars > 25000;
+}
+
+ui.textInput.addEventListener('input', updateCounts);
+
+/* ═══ SAMPLE CHIPS ══════════════════════════════════════════ */
+
+document.querySelectorAll('.chip[data-s]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.s;
+    if (SAMPLES[key]) {
+      ui.textInput.value = SAMPLES[key];
+      switchTab('text');
+      updateCounts();
+      ui.textInput.focus();
+    }
+  });
+});
+
+/* ═══ SIDEBAR ════════════════════════════════════════════════ */
+
+function openSidebar()  { ui.sidebar.classList.add('open');  }
+function closeSidebar() { ui.sidebar.classList.remove('open'); }
+
+$('open-sidebar')?.addEventListener('click', openSidebar);
+$('close-sidebar')?.addEventListener('click', closeSidebar);
+
+$('clear-history-btn')?.addEventListener('click', () => {
+  if (confirm('Clear all scan history?')) {
+    localStorage.removeItem('tl_history');
+    loadHistory();
+  }
+});
+
+/* ═══ FORM SUBMIT ════════════════════════════════════════════ */
+
+ui.form?.addEventListener('submit', e => {
+  e.preventDefault();
+  analyze(ui.textInput.value.trim());
+});
+
+ui.clearBtn?.addEventListener('click', () => {
+  ui.textInput.value = '';
+  updateCounts();
+  ui.textInput.focus();
+});
+
+/* ═══ URL FETCH ════════════════════════════════════════════ */
+
+ui.fetchUrlBtn?.addEventListener('click', () => {
+  fetchAndAnalyzeUrl(ui.urlInput.value.trim());
+});
+ui.urlInput?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') fetchAndAnalyzeUrl(ui.urlInput.value.trim());
+});
+
+/* ═══ DRAG-DROP IMAGE ═══════════════════════════════════════ */
+
+ui.dropZone?.addEventListener('click', () => ui.fileInput.click());
+ui.dropZone?.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') ui.fileInput.click(); });
+ui.fileInput?.addEventListener('change', () => {
+  const f = ui.fileInput.files[0];
+  if (f) handleImageFile(f);
+});
+
+['dragenter','dragover'].forEach(ev => {
+  ui.dropZone?.addEventListener(ev, e => { e.preventDefault(); ui.dropZone.classList.add('over'); });
+});
+['dragleave','drop'].forEach(ev => {
+  ui.dropZone?.addEventListener(ev, e => { e.preventDefault(); ui.dropZone.classList.remove('over'); });
+});
+ui.dropZone?.addEventListener('drop', e => {
+  const f = e.dataTransfer?.files[0];
+  if (f && f.type.startsWith('image/')) handleImageFile(f);
+  else showToast('Please drop an image file (PNG, JPG, WEBP)', 'error');
+});
+
+function handleImageFile(f) {
+  if (f.size > 5 * 1024 * 1024) { showToast('Image too large (max 5MB)', 'error'); return; }
+  uploadedFile = f;
+  const url = URL.createObjectURL(f);
+  $('preview-img').src = url;
+  $('img-preview').classList.remove('hidden');
+  ui.dropZone.classList.add('hidden');
+  $('ocr-note').textContent = `${f.name} — ready to OCR`;
+  ocrAndAnalyze(f);
+}
+
+$('remove-img-btn')?.addEventListener('click', () => {
+  uploadedFile = null;
+  ui.fileInput.value = '';
+  $('img-preview').classList.add('hidden');
+  ui.dropZone.classList.remove('hidden');
+});
+
+/* ═══ MODAL ══════════════════════════════════════════════════ */
+
+$('methodology-btn')?.addEventListener('click', () => { ui.modal.classList.remove('hidden'); });
+$('close-modal')?.addEventListener('click',    () => { ui.modal.classList.add('hidden'); });
+ui.modal?.addEventListener('click', e => { if (e.target === ui.modal) ui.modal.classList.add('hidden'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') ui.modal?.classList.add('hidden'); });
+
+/* ═══ EXPORT / COPY ══════════════════════════════════════════ */
+
+$('share-btn')?.addEventListener('click', async () => {
+  if (!latestResult) return;
+  const r = latestResult;
+  const summary = `TruthLens Analysis
+Verdict: ${r.primary_verdict} | Classification: ${r.legacy_classification}
+Credibility: ${r.credibility_score}% | Deception Risk: ${r.fake_probability}%
+Claims: ${(r.claims||[]).length} | Message: ${r.message}
+Analyzed at: ${r.created_at}`;
+  if (await copyText(summary)) showToast('Summary copied!', 'success');
+  else showToast('Copy failed — try selecting manually', 'error');
+});
+
+const doExport = () => {
+  if (!latestResult) return;
+  const blob = new Blob([JSON.stringify(latestResult, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `truthlens-${latestResult.scan_id || 'report'}.json`;
+  a.click(); URL.revokeObjectURL(url);
+};
+$('export-btn')?.addEventListener('click', doExport);
+$('export-btn2')?.addEventListener('click', doExport);
+
+/* ═══ INIT ═══════════════════════════════════════════════════ */
+
+(async () => {
+  await checkApiHealth();
+  loadHistory();
+  updateCounts();
+})();
