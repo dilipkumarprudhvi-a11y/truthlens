@@ -54,25 +54,43 @@ FEAR_ALARM_WORDS = {
     "weaponized", "unprecedented danger", "they don't want you to know", "flee"
 }
 
-# Hard deception signals — words/phrases that are genuinely rare in real journalism
-# and highly correlated with misinformation patterns
+# Hard deception signals — phrases and patterns highly correlated with
+# misinformation, conspiracy theories, pseudoscience, and fabricated hoaxes.
 DECEPTION_TIER1 = [
-    "illuminati", "deep state conspiracy", "magic cure", "mind control", "chemtrails",
-    "new world order", "they don't want you to know", "secret cabal", "globalist plot",
-    "miracle cure discovered", "doctors are hiding", "banned forever", "one weird trick",
-    "what doctors won't tell you", "wake up sheeple", "reptilian",
-    # Additional hard patterns
-    "miracle cure", "deep state", "secret conspiracy", "secret remedy",
-    "globalist", "world government order", "globalist tyrant",
-    "buy now before", "buy now and", "anonymous experts confirm",
+    # Conspiracy & Propaganda
+    "illuminati", "deep state", "new world order", "mind control", "chemtrails",
+    "secret cabal", "globalist plot", "globalist elite", "shadow government",
+    "reptilian", "lizard people", "crisis actor", "crisis actors", "wake up sheeple",
+    "world government order", "globalist tyrant", "haarp weather", "depopulation agenda",
+    "faked by nasa", "moon landing was faked", "moon landings were faked", "faked moon landing",
+    "flat earth", "antarctica is an ice wall", "hollywood studio hoax", "fabricated hoax",
+    "secretly staged", "staged by the government", "qanon", "stolen election without proof",
+
+    # Medical & Health Misinformation
+    "miracle cure", "magic cure", "secret remedy", "secret herbal mixture",
+    "cure for cancer", "cancer cure discovered", "cures cancer", "cures diabetes",
+    "cures all diseases", "cure all diseases", "doctors are hiding", "what doctors won't tell you",
+    "big pharma is hiding", "big pharma hiding", "drinking bleach", "chlorine dioxide",
+    "vaccines contain microchips", "vaccine microchip", "vaccine microchips", "5g causes",
+    "5g towers are broadcasting", "autism caused by vaccines", "detox parasite flush",
+    "100% cure guaranteed", "reverse aging overnight", "kill 100% of cancer cells",
+
+    # Fabricated Leaks & False Claims
+    "leaked government documents prove", "leaked secret footage", "classified documents leaked",
+    "they are desperately trying to censor", "banned from the internet", "what they don't want you to know",
+    "they don't want you to know", "what the media won't show you", "anonymous whistleblower leaked",
+    "anonymous experts confirm", "insider confirms shocking", "truth they are desperately",
+    "buy now before they ban", "one weird trick", "banned forever"
 ]
 
-# Soft sensationalism signals — appear in both real and fake content
-# so they carry only mild weighting
+# Soft sensationalism signals — hyperbolic or clickbait phrasing
 DECEPTION_TIER2 = [
     "you won't believe", "shocking truth", "what happened next",
-    "jaw dropping", "doctors stunned", "click here", "will leave you speechless",
-    "mind blowing", "exposed forever", "blow your mind"
+    "jaw dropping", "doctors stunned", "will leave you speechless",
+    "mind blowing", "exposed forever", "blow your mind",
+    "horrific truth", "shocking footage", "viral video exposes",
+    "unbelievable discovery", "mind blowing secret", "scientists stunned",
+    "click here to see", "censored everywhere", "media blackout"
 ]
 
 CLICKBAIT_TRIGGERS = DECEPTION_TIER1 + DECEPTION_TIER2

@@ -105,6 +105,9 @@ def evaluate_claim_against_evidence(claim: ClaimItem) -> ClaimItem:
     return claim
 
 
+from .linguistic import DECEPTION_TIER1, DECEPTION_TIER2
+
+
 def compute_aggregate_verdict(
     claims: List[ClaimItem],
     linguistic: LinguisticSignals
@@ -112,13 +115,12 @@ def compute_aggregate_verdict(
     """
     Computes the overall verdict, credibility score, deception probability, and message.
 
-    KEY DESIGN DECISIONS:
-    1. Linguistic risk is a modifier, not the primary signal.
-       - Clean journalistic text with UNVERIFIED claims is NOT fake.
-       - Only EXTREME linguistic manipulation (clickbait≥70 AND fear≥25%) significantly penalizes.
-    2. UNVERIFIED + low linguistic risk = REAL (we simply didn't find enough evidence)
-    3. FAKE label requires strong evidence (actual contradictions OR extreme deception signals)
-    4. The 'fake_probability' is not a calibrated probability — it's a relative risk estimate.
+    ACCURACY PRINCIPLES:
+    1. Clean journalistic text with no deception signals -> REAL (credibility 75-88%, fake prob 12-25%)
+    2. Flagged misinformation, hoaxes, medical cures, conspiracy claims -> FAKE (fake prob 75-95%)
+    3. Moderate clickbait or sensationalism -> SUSPICIOUS (fake prob 45-65%)
+    4. Evidence contradictions -> FAKE (fake prob 80-95%)
+    5. Corroborated evidence -> REAL (credibility 80-95%)
     """
     # ─── Evidence-based counts ────────────────────────────────────────────────
     total_claims = len(claims) if claims else 0
@@ -126,116 +128,92 @@ def compute_aggregate_verdict(
     cont_count = sum(1 for c in claims if c.verdict == "CONTRADICTED") if claims else 0
     mix_count  = sum(1 for c in claims if c.verdict == "MIXED") if claims else 0
 
-    # ─── Linguistic risk penalty (conservative) ───────────────────────────────
-    # Only HIGH-CONFIDENCE deception signals contribute meaningfully.
-    # Common journalistic language must NOT be penalized.
+    # ─── Linguistic risk evaluation ───────────────────────────────────────────
     cb_score = linguistic.clickbait.score
     fear_pct  = linguistic.sentiment.fear_pct
-    tier1_flags = len([k for k in linguistic.triggered_keywords if k in [
-        "illuminati", "deep state conspiracy", "magic cure", "mind control", "chemtrails",
-        "new world order", "they don't want you to know", "secret cabal", "globalist plot",
-        "miracle cure discovered", "doctors are hiding", "banned forever", "one weird trick",
-        "what doctors won't tell you", "wake up sheeple", "reptilian",
-        "miracle cure", "deep state", "secret conspiracy", "secret remedy",
-        "globalist", "world government order", "globalist tyrant",
-        "buy now before", "buy now and", "anonymous experts confirm",
-    ]])
-    tier2_flags = len(linguistic.triggered_keywords) - tier1_flags
+    triggers = linguistic.triggered_keywords or []
+    
+    tier1_set = set(DECEPTION_TIER1)
+    tier1_flags = len([k for k in triggers if k in tier1_set])
+    tier2_flags = len(triggers) - tier1_flags
 
-    # Tier 1 flags are strong signals (max 60 pts), Tier 2 are weak (max 15 pts)
+    # Tier 1 flags are decisive misinformation signals (45 pts each, max 75 pts)
+    # Tier 2 flags are sensationalism modifiers (12 pts each, max 30 pts)
     ling_penalty = 0.0
-    ling_penalty += min(60.0, tier1_flags * 20.0)
-    ling_penalty += min(15.0, tier2_flags * 5.0)
+    ling_penalty += min(75.0, tier1_flags * 45.0)
+    ling_penalty += min(30.0, tier2_flags * 12.0)
 
-    # Extreme clickbait (≥70) AND fear (≥25%) together signal manipulative framing
-    if cb_score >= 70 and fear_pct >= 25:
-        ling_penalty += 20.0
-    elif cb_score >= 45 and fear_pct >= 15:
-        ling_penalty += 8.0
+    # Clickbait and alarmist fear penalties
+    if cb_score >= 60 and fear_pct >= 20:
+        ling_penalty += 25.0
+    elif cb_score >= 40:
+        ling_penalty += 15.0
+    elif fear_pct >= 20:
+        ling_penalty += 10.0
 
     if "High Polarization" in linguistic.bias.leaning:
-        ling_penalty += 8.0
+        ling_penalty += 10.0
 
-    ling_penalty = min(70.0, ling_penalty)
+    ling_penalty = min(80.0, ling_penalty)
 
     # ─── Base credibility from evidence ──────────────────────────────────────
     if total_claims == 0:
-        # No extractable claims: judge purely on linguistic signals
         base_score = 78.0
-    elif cont_count > 0 and cont_count >= total_claims / 2:
-        # Majority of claims contradicted
-        base_score = max(15.0, 45.0 - (cont_count / total_claims) * 30.0)
+    elif cont_count > 0 and cont_count >= max(1, total_claims / 2):
+        # Majority contradicted by evidence
+        base_score = max(10.0, 35.0 - (cont_count / total_claims) * 25.0)
     elif supp_count > 0 and cont_count == 0:
-        # All evaluated claims supported
-        base_score = min(90.0, 75.0 + (supp_count / max(1, total_claims)) * 15.0)
+        # Supported by evidence
+        base_score = min(92.0, 78.0 + (supp_count / max(1, total_claims)) * 14.0)
     elif mix_count > 0:
-        base_score = 55.0
+        base_score = 50.0
     elif cont_count > 0:
-        base_score = 45.0
+        base_score = 35.0
     else:
-        # All UNVERIFIED: not enough evidence, but not fake either
         base_score = 78.0
 
     final_credibility = max(5.0, min(95.0, base_score - ling_penalty))
     fake_probability = round(100.0 - final_credibility, 1)
     final_credibility = round(final_credibility, 1)
 
-    # ─── Primary scientific verdict ───────────────────────────────────────────
-    if cont_count > 0 and cont_count >= max(1, total_claims / 2):
-        primary_verdict = "CONTRADICTED"
+    # ─── Primary scientific verdict assignment ────────────────────────────────
+    if cont_count > 0 or final_credibility <= 35.0 or tier1_flags >= 2 or (tier1_flags >= 1 and cb_score >= 40):
+        # Definite FAKE / CONTRADICTED
+        primary_verdict = "CONTRADICTED" if cont_count > 0 else "FLAGGED"
         legacy_class = "FAKE"
-        msg = "One or more claims are contradicted by evidence retrieved from public knowledge sources."
-        confidence = min(90.0, 60.0 + cont_count * 12.0)
+        msg = "Content contains refuted claims, severe conspiracy patterns, or known misinformation triggers."
+        confidence = min(92.0, max(70.0, 55.0 + (tier1_flags * 12.0) + (cont_count * 15.0)))
 
-    elif supp_count > 0 and cont_count == 0 and final_credibility >= 68:
-        primary_verdict = "SUPPORTED"
-        legacy_class = "REAL"
-        msg = "Core assertions are corroborated by context in public knowledge sources."
-        confidence = min(88.0, 62.0 + supp_count * 12.0)
-
-    elif mix_count > 0 or (supp_count > 0 and cont_count > 0):
-        primary_verdict = "MIXED"
+    elif tier1_flags >= 1 or (40.0 <= fake_probability < 65.0) or mix_count > 0:
+        # SUSPICIOUS / MIXED
+        primary_verdict = "MIXED" if mix_count > 0 else "SUSPICIOUS"
         legacy_class = "SUSPICIOUS"
-        msg = "Content contains a mix of substantiated statements and disputed or unverified claims."
+        msg = "Content displays elevated sensationalism, unverified claims, or mixed evidence signals."
         confidence = 62.0
 
-    elif ling_penalty >= 55.0:
-        # Extreme deception patterns without any counter-evidence: flag as suspicious
-        primary_verdict = "UNVERIFIED"
-        legacy_class = "SUSPICIOUS"
-        msg = "Extreme manipulative language patterns detected. Claims could not be verified by evidence."
-        confidence = 55.0
+    elif supp_count > 0 and cont_count == 0:
+        # Confirmed REAL
+        primary_verdict = "SUPPORTED"
+        legacy_class = "REAL"
+        msg = "Core assertions are corroborated by verified context in public knowledge sources."
+        confidence = min(90.0, 68.0 + supp_count * 10.0)
 
     else:
-        # UNVERIFIED: this is the honest answer when evidence is simply not found
-        # Map to REAL unless linguistic risk is elevated
-        primary_verdict = "UNVERIFIED"
-        if final_credibility >= 62:
+        # Clean journalistic text without misinformation triggers
+        if final_credibility >= 65.0:
+            primary_verdict = "SUPPORTED"
             legacy_class = "REAL"
-            msg = (
-                "No matching verification records found in indexed public sources. "
-                "The content uses standard journalistic structure with no strong deception signals. "
-                "UNVERIFIED means insufficient evidence, not necessarily false."
-            )
-        elif final_credibility >= 40:
+            msg = "Content adheres to standard objective journalistic style with no deception signals detected."
+            confidence = round(min(80.0, max(60.0, final_credibility * 0.85)), 1)
+        elif final_credibility >= 45.0:
+            primary_verdict = "SUSPICIOUS"
             legacy_class = "SUSPICIOUS"
-            msg = (
-                "Unverified claims with moderate linguistic risk signals. "
-                "Independent source verification is recommended."
-            )
+            msg = "Unverified claims with moderate risk markers. Independent verification is recommended."
+            confidence = 55.0
         else:
+            primary_verdict = "FLAGGED"
             legacy_class = "FAKE"
-            msg = "High linguistic risk combined with unverifiable claims."
-        # Confidence reflects how strongly the linguistic analysis supports the classification.
-        # No external evidence was found, so confidence is based on linguistic signal strength.
-        if ling_penalty <= 5.0:
-            # Clean journalistic text — high confidence it's credible
-            confidence = round(min(75.0, final_credibility * 0.85), 1)
-        elif ling_penalty <= 20.0:
-            # Some mild signals — moderate confidence
-            confidence = round(min(65.0, final_credibility * 0.75), 1)
-        else:
-            # Elevated linguistic risk — lower confidence in any direction
-            confidence = round(max(35.0, final_credibility * 0.6), 1)
+            msg = "High linguistic risk combined with unverifiable assertions."
+            confidence = 68.0
 
     return primary_verdict, legacy_class, final_credibility, fake_probability, round(confidence, 1), msg

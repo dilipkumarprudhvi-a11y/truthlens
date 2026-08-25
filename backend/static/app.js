@@ -287,26 +287,26 @@ function renderVerdictCard(d) {
   const conf    = d.confidence || 50;
 
   // Determine if result is REAL, FAKE, SUSPICIOUS, or INCONCLUSIVE
-  const isFake = legacy === 'FAKE' || verdict === 'contradicted' || fake > cred;
-  const isInconclusive = conf < 45 && cred >= 38 && cred <= 62;
-  const isSuspicious = !isFake && !isInconclusive && (legacy === 'SUSPICIOUS' || verdict === 'mixed');
+  const isFake = legacy === 'FAKE' || verdict === 'contradicted' || verdict === 'flagged' || fake >= 55;
+  const isInconclusive = !isFake && conf < 45 && cred >= 38 && cred <= 62;
+  const isSuspicious = !isFake && !isInconclusive && (legacy === 'SUSPICIOUS' || verdict === 'mixed' || (fake >= 38 && fake < 55));
 
   let displayScore, scoreColor, scoreLabel;
   if (isFake) {
     displayScore = Math.round(fake);
-    scoreColor = '#EF4444';
+    scoreColor = '#EF4444'; // Red
     scoreLabel = 'FAKE';
   } else if (isInconclusive) {
     displayScore = Math.round(conf);
-    scoreColor = '#8B5CF6';
+    scoreColor = '#8B5CF6'; // Violet
     scoreLabel = 'INCONCLUSIVE';
   } else if (isSuspicious) {
-    displayScore = Math.round(fake >= 50 ? fake : cred);
-    scoreColor = '#F59E0B';
+    displayScore = Math.round(fake >= cred ? fake : cred);
+    scoreColor = '#F59E0B'; // Amber
     scoreLabel = 'SUSPICIOUS';
   } else {
     displayScore = Math.round(cred);
-    scoreColor = '#22C55E';
+    scoreColor = '#22C55E'; // Emerald Green
     scoreLabel = 'REAL';
   }
 
@@ -339,7 +339,7 @@ function renderVerdictCard(d) {
   const pb = $('primary-badge');
   pb.className = `verdict-badge ${cardVerdictClass}`;
   pb.textContent = isInconclusive ? 'INCONCLUSIVE' :
-    d.primary_verdict || (isFake ? 'CONTRADICTED' : isSuspicious ? 'MIXED' : 'SUPPORTED');
+    d.primary_verdict || (isFake ? 'FLAGGED' : isSuspicious ? 'MIXED' : 'SUPPORTED');
 
   // Legacy badge
   const lb = $('legacy-badge');
@@ -352,10 +352,12 @@ function renderVerdictCard(d) {
 
   // Headline and message
   const headlines = {
-    SUPPORTED:    'Analysis Complete',
+    SUPPORTED:    'Content Appears Credible',
     CONTRADICTED: 'Content Contradicted by Evidence',
+    FLAGGED:      'Misinformation Patterns Flagged',
     MIXED:        'Mixed Signals \u2014 Partial Verification',
-    UNVERIFIED:    'Analysis Complete',
+    SUSPICIOUS:   'Elevated Risk \u2014 Unverified Claims',
+    UNVERIFIED:   'Analysis Complete',
   };
   $('verdict-headline').textContent = isInconclusive ? 'Insufficient Evidence' :
     (headlines[d.primary_verdict] || 'Analysis Complete');
