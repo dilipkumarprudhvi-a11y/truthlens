@@ -473,9 +473,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   transform: translate(-50%, -50%);
   text-align: center; display: flex; flex-direction: column; align-items: center;
 }
-.gauge-num { font-size: 2.1rem; font-weight: 800; color: var(--text-main); line-height: 1; }
+.gauge-num { font-size: 2.2rem; font-weight: 800; line-height: 1; transition: color .4s ease; }
 .gauge-pct { font-size: .88rem; font-weight: 700; color: var(--text-dim); }
-.gauge-lbl { font-size: .62rem; font-weight: 700; letter-spacing: .09em; color: var(--text-dim); margin-top: .15rem; }
+.gauge-lbl { font-size: .74rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-top: .2rem; transition: color .4s ease; }
 
 .verdict-body { flex: 1; min-width: 270px; }
 .verdict-badges { display: flex; align-items: center; gap: .55rem; margin-bottom: .55rem; flex-wrap: wrap; }

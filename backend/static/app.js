@@ -281,17 +281,44 @@ function renderResults(d) {
 /* Verdict card */
 function renderVerdictCard(d) {
   const verdict = (d.primary_verdict || 'UNVERIFIED').toLowerCase();
-  const legacy  = (d.legacy_classification || 'SUSPICIOUS').toUpperCase();
+  const legacy  = (d.legacy_classification || d.classification || 'SUSPICIOUS').toUpperCase();
   const cred    = d.credibility_score || 50;
   const fake    = d.fake_probability || 50;
 
+  // Determine if result is REAL, FAKE, or SUSPICIOUS/UNCERTAIN
+  const isFake = legacy === 'FAKE' || verdict === 'contradicted' || fake > cred;
+  const isSuspicious = legacy === 'SUSPICIOUS' || verdict === 'mixed';
+
+  let displayScore, scoreColor, scoreLabel;
+  if (isFake) {
+    displayScore = Math.round(fake);
+    scoreColor = '#EF4444'; // Vibrant Red
+    scoreLabel = 'FAKE';
+  } else if (isSuspicious) {
+    displayScore = Math.round(fake >= 50 ? fake : cred);
+    scoreColor = '#F59E0B'; // Amber
+    scoreLabel = 'SUSPICIOUS';
+  } else {
+    displayScore = Math.round(cred);
+    scoreColor = '#22C55E'; // Emerald Green
+    scoreLabel = 'REAL';
+  }
+
   // Gauge ring (circumference = 2π×42 ≈ 264)
-  const dashOffset = 264 - (264 * clamp(cred, 0, 100)) / 100;
+  const dashOffset = 264 - (264 * clamp(displayScore, 0, 100)) / 100;
   const ring = $('gauge-ring');
   ring.style.strokeDashoffset = dashOffset;
-  const gaugeColor = cred >= 65 ? '#22C55E' : cred >= 45 ? '#F59E0B' : '#EF4444';
-  ring.style.stroke = gaugeColor;
-  $('gauge-val').textContent = Math.round(cred);
+  ring.style.stroke = scoreColor;
+
+  const valEl = $('gauge-val');
+  valEl.textContent = displayScore;
+  valEl.style.color = scoreColor;
+
+  const lblEl = $('gauge-lbl');
+  if (lblEl) {
+    lblEl.textContent = scoreLabel;
+    lblEl.style.color = scoreColor;
+  }
 
   // Card coloring
   ui.verdictCard.className = `verdict-card ${verdict}`;
@@ -299,12 +326,12 @@ function renderVerdictCard(d) {
   // Primary badge
   const pb = $('primary-badge');
   pb.className = `verdict-badge ${verdict}`;
-  pb.textContent = d.primary_verdict || 'UNVERIFIED';
+  pb.textContent = d.primary_verdict || (isFake ? 'CONTRADICTED' : 'SUPPORTED');
 
   // Legacy badge
   const lb = $('legacy-badge');
-  lb.textContent = `Legacy: ${legacy}`;
-  lb.style.color = legacy === 'REAL' ? '#22C55E' : legacy === 'FAKE' ? '#EF4444' : '#F59E0B';
+  lb.textContent = `Verdict: ${legacy}`;
+  lb.style.color = scoreColor;
 
   // Tone badge
   const tone = (d.sentiment || {}).tone || (d.linguistic_signals?.sentiment || {}).tone || '';
