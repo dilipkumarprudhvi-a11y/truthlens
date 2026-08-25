@@ -471,11 +471,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .gauge-center {
   position: absolute; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  text-align: center; display: flex; flex-direction: column; align-items: center;
+  text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
+.gauge-num-row { display: flex; align-items: baseline; justify-content: center; gap: 1px; }
 .gauge-num { font-size: 2.2rem; font-weight: 800; line-height: 1; transition: color .4s ease; }
 .gauge-pct { font-size: .88rem; font-weight: 700; color: var(--text-dim); }
-.gauge-lbl { font-size: .74rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-top: .2rem; transition: color .4s ease; }
+.gauge-lbl { font-size: .76rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; margin-top: .15rem; transition: color .4s ease; }
 
 .verdict-body { flex: 1; min-width: 270px; }
 .verdict-badges { display: flex; align-items: center; gap: .55rem; margin-bottom: .55rem; flex-wrap: wrap; }

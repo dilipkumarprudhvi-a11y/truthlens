@@ -321,12 +321,13 @@ function renderVerdictCard(d) {
   }
 
   // Card coloring
-  ui.verdictCard.className = `verdict-card ${verdict}`;
+  const cardVerdictClass = isFake ? 'contradicted' : isSuspicious ? 'mixed' : 'supported';
+  ui.verdictCard.className = `verdict-card ${cardVerdictClass}`;
 
   // Primary badge
   const pb = $('primary-badge');
-  pb.className = `verdict-badge ${verdict}`;
-  pb.textContent = d.primary_verdict || (isFake ? 'CONTRADICTED' : 'SUPPORTED');
+  pb.className = `verdict-badge ${cardVerdictClass}`;
+  pb.textContent = d.primary_verdict || (isFake ? 'CONTRADICTED' : isSuspicious ? 'MIXED' : 'SUPPORTED');
 
   // Legacy badge
   const lb = $('legacy-badge');
