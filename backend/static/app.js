@@ -320,6 +320,14 @@ function renderVerdictCard(d) {
   $('verdict-headline').textContent = headlines[d.primary_verdict] || 'Analysis Complete';
   $('verdict-msg').textContent = d.message || '—';
 
+  // Dual percentage bar (True/Real in Green vs False/Fake in Red)
+  const realVal = Math.round(cred);
+  const fakeVal = Math.round(fake);
+  if ($('vbar-val-real')) $('vbar-val-real').textContent = `${realVal}%`;
+  if ($('vbar-val-fake')) $('vbar-val-fake').textContent = `${fakeVal}%`;
+  if ($('vbar-fill-real')) $('vbar-fill-real').style.width = `${realVal}%`;
+  if ($('vbar-fill-fake')) $('vbar-fill-fake').style.width = `${fakeVal}%`;
+
   // Metrics
   $('vm-fake').textContent = `${fake}%`;
   $('vm-conf').textContent = `${d.confidence || 0}%`;

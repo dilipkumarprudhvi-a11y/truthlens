@@ -244,6 +244,19 @@
                 </div>
                 <h3 id="verdict-headline" class="verdict-headline">Analysis Result</h3>
                 <p id="verdict-msg" class="verdict-msg">—</p>
+
+                <!-- Dual Real (Green) vs Fake (Red) Percentage Bar -->
+                <div class="verdict-bar-wrap">
+                  <div class="verdict-bar-labels">
+                    <span class="vbar-lbl-real"><span class="vbar-dot green"></span>True / Credible: <strong id="vbar-val-real">0%</strong></span>
+                    <span class="vbar-lbl-fake"><span class="vbar-dot red"></span>False / Deceptive: <strong id="vbar-val-fake">0%</strong></span>
+                  </div>
+                  <div class="verdict-dual-track">
+                    <div class="verdict-dual-real" id="vbar-fill-real" style="width: 0%;"></div>
+                    <div class="verdict-dual-fake" id="vbar-fill-fake" style="width: 0%;"></div>
+                  </div>
+                </div>
+
                 <div class="verdict-metrics">
                   <div class="vm"><span class="vm-l">Deception Risk</span><span class="vm-v" id="vm-fake">—</span></div>
                   <div class="vm"><span class="vm-l">Evidence Confidence</span><span class="vm-v" id="vm-conf">—</span></div>
