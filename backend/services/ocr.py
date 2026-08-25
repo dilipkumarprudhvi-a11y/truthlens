@@ -6,7 +6,7 @@ Note: Never fabricates simulated text or reverse-image searches.
 
 import os
 import io
-from typing import Tuple
+from typing import Tuple, Optional
 from ..schemas.analysis import OcrExtractResponse
 
 # Safe allowed image MIME types
