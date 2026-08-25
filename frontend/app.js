@@ -284,27 +284,33 @@ function renderVerdictCard(d) {
   const legacy  = (d.legacy_classification || d.classification || 'SUSPICIOUS').toUpperCase();
   const cred    = d.credibility_score || 50;
   const fake    = d.fake_probability || 50;
+  const conf    = d.confidence || 50;
 
-  // Determine if result is REAL, FAKE, or SUSPICIOUS/UNCERTAIN
+  // Determine if result is REAL, FAKE, SUSPICIOUS, or INCONCLUSIVE
   const isFake = legacy === 'FAKE' || verdict === 'contradicted' || fake > cred;
-  const isSuspicious = legacy === 'SUSPICIOUS' || verdict === 'mixed';
+  const isInconclusive = conf < 45 && cred >= 38 && cred <= 62;
+  const isSuspicious = !isFake && !isInconclusive && (legacy === 'SUSPICIOUS' || verdict === 'mixed');
 
   let displayScore, scoreColor, scoreLabel;
   if (isFake) {
     displayScore = Math.round(fake);
-    scoreColor = '#EF4444'; // Vibrant Red
+    scoreColor = '#EF4444';
     scoreLabel = 'FAKE';
+  } else if (isInconclusive) {
+    displayScore = Math.round(conf);
+    scoreColor = '#8B5CF6';
+    scoreLabel = 'INCONCLUSIVE';
   } else if (isSuspicious) {
     displayScore = Math.round(fake >= 50 ? fake : cred);
-    scoreColor = '#F59E0B'; // Amber
+    scoreColor = '#F59E0B';
     scoreLabel = 'SUSPICIOUS';
   } else {
     displayScore = Math.round(cred);
-    scoreColor = '#22C55E'; // Emerald Green
+    scoreColor = '#22C55E';
     scoreLabel = 'REAL';
   }
 
-  // Gauge ring (circumference = 2π×42 ≈ 264)
+  // Gauge ring (circumference = 2*pi*42 = 264)
   const dashOffset = 264 - (264 * clamp(displayScore, 0, 100)) / 100;
   const ring = $('gauge-ring');
   ring.style.strokeDashoffset = dashOffset;
@@ -314,6 +320,9 @@ function renderVerdictCard(d) {
   valEl.textContent = displayScore;
   valEl.style.color = scoreColor;
 
+  const pctEl = $('gauge-pct');
+  if (pctEl) pctEl.style.color = scoreColor;
+
   const lblEl = $('gauge-lbl');
   if (lblEl) {
     lblEl.textContent = scoreLabel;
@@ -321,96 +330,53 @@ function renderVerdictCard(d) {
   }
 
   // Card coloring
-  const cardVerdictClass = isFake ? 'contradicted' : isSuspicious ? 'mixed' : 'supported';
+  let cardVerdictClass = isFake ? 'contradicted' :
+      isInconclusive ? 'inconclusive' :
+      isSuspicious ? 'mixed' : 'supported';
   ui.verdictCard.className = `verdict-card ${cardVerdictClass}`;
 
   // Primary badge
   const pb = $('primary-badge');
   pb.className = `verdict-badge ${cardVerdictClass}`;
-  pb.textContent = d.primary_verdict || (isFake ? 'CONTRADICTED' : isSuspicious ? 'MIXED' : 'SUPPORTED');
+  pb.textContent = isInconclusive ? 'INCONCLUSIVE' :
+    d.primary_verdict || (isFake ? 'CONTRADICTED' : isSuspicious ? 'MIXED' : 'SUPPORTED');
 
   // Legacy badge
   const lb = $('legacy-badge');
-  lb.textContent = `Verdict: ${legacy}`;
+  lb.textContent = isInconclusive ? 'Verdict: INCONCLUSIVE' : `Verdict: ${legacy}`;
   lb.style.color = scoreColor;
 
   // Tone badge
   const tone = (d.sentiment || {}).tone || (d.linguistic_signals?.sentiment || {}).tone || '';
-  $('tone-badge').textContent = tone || '—';
+  $('tone-badge').textContent = tone || '\u2014';
 
   // Headline and message
   const headlines = {
-    SUPPORTED:    'Content Appears Credible',
+    SUPPORTED:    'Analysis Complete',
     CONTRADICTED: 'Content Contradicted by Evidence',
-    MIXED:        'Mixed Signals — Partial Verification',
-    UNVERIFIED:    'Insufficient Evidence to Verify',
+    MIXED:        'Mixed Signals \u2014 Partial Verification',
+    UNVERIFIED:    'Analysis Complete',
   };
-  $('verdict-headline').textContent = headlines[d.primary_verdict] || 'Analysis Complete';
-  $('verdict-msg').textContent = d.message || '—';
+  $('verdict-headline').textContent = isInconclusive ? 'Insufficient Evidence' :
+    (headlines[d.primary_verdict] || 'Analysis Complete');
+  $('verdict-msg').textContent = isInconclusive
+    ? 'Insufficient evidence to make a confident determination. Independent verification is recommended.'
+    : (d.message || '\u2014');
 
-  // Hero Percentage Meter Badge (e.g. "92% REAL" or "87% FAKE")
-  const heroBadge = $('hero-meter-badge');
-  const heroText = $('hero-meter-text');
-  if (heroBadge && heroText) {
-    if (isFake) {
-      heroBadge.className = 'hero-meter-badge fake';
-      heroText.textContent = `${displayScore}% FAKE`;
-    } else if (isSuspicious) {
-      heroBadge.className = 'hero-meter-badge suspicious';
-      heroText.textContent = `${displayScore}% SUSPICIOUS`;
-    } else {
-      heroBadge.className = 'hero-meter-badge real';
-      heroText.textContent = `${displayScore}% REAL`;
-    }
-  }
-
-  // Dual percentage bar (True/Real in Green vs False/Fake in Red)
+  // Continuous percentage bar (green fill = credibility %)
   const realVal = Math.round(cred);
   const fakeVal = Math.round(fake);
   if ($('vbar-val-real')) $('vbar-val-real').textContent = `${realVal}%`;
   if ($('vbar-val-fake')) $('vbar-val-fake').textContent = `${fakeVal}%`;
-  if ($('vbar-fill-real')) $('vbar-fill-real').style.width = `${realVal}%`;
-  if ($('vbar-fill-fake')) $('vbar-fill-fake').style.width = `${fakeVal}%`;
-
-  // Calculation Reasoning & Confidence Basis
-  const rList = $('verdict-reasoning-list');
-  if (rList) {
-    const claims = d.claims || [];
-    const suppCount = claims.filter(c => c.verdict === 'SUPPORTED').length;
-    const contCount = claims.filter(c => c.verdict === 'CONTRADICTED').length;
-    const ling = d.linguistic_signals || {};
-    const triggers = ling.triggered_keywords || d.triggered_keywords || [];
-    const cb = (d.clickbait || ling.clickbait || {}).score || 0;
-    const tone = (d.sentiment || ling.sentiment || {}).tone || 'Neutral';
-
-    const items = [];
-    if (contCount > 0) {
-      items.push(`<strong>Refutation Found:</strong> ${contCount} claim(s) contradicted by independent evidence sources.`);
-    } else if (suppCount > 0) {
-      items.push(`<strong>Corroboration Found:</strong> ${suppCount} claim(s) corroborated by public knowledge records.`);
-    } else {
-      items.push(`<strong>Indexed Sources:</strong> Cross-referenced public knowledge repositories; no matching refutation reports found.`);
-    }
-
-    if (triggers.length > 0) {
-      items.push(`<strong>Deception Signals:</strong> Detected ${triggers.length} high-risk manipulation trigger(s): <em>${triggers.slice(0, 3).join(', ')}</em>.`);
-    } else if (cb < 25) {
-      items.push(`<strong>Journalistic Style:</strong> Standard objective phrasing with minimal sensationalism (${cb}/100 clickbait score).`);
-    } else {
-      items.push(`<strong>Linguistic Tone:</strong> Assessed as ${tone} with ${cb}/100 clickbait index.`);
-    }
-
-    items.push(`<strong>Confidence Score:</strong> ${d.confidence || 50}% confidence derived from multi-signal corroboration.`);
-
-    rList.innerHTML = items.map(it => `<li>${it}</li>`).join('');
-  }
+  if ($('vbar-fill'))     $('vbar-fill').style.width = `${realVal}%`;
 
   // Metrics
-  $('vm-fake').textContent = `${fake}%`;
-  $('vm-conf').textContent = `${d.confidence || 0}%`;
+  $('vm-fake').textContent = `${fakeVal}%`;
+  $('vm-conf').textContent = `${Math.round(conf)}%`;
   $('vm-words').textContent = (d.text_length || 0).toLocaleString();
   $('vm-claims').textContent = (d.claims || []).length;
 
+  // Color the deception risk value
   const fakeEl = $('vm-fake');
   fakeEl.style.color = fake > 60 ? '#EF4444' : fake > 40 ? '#F59E0B' : '#22C55E';
 }

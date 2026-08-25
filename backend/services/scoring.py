@@ -226,6 +226,16 @@ def compute_aggregate_verdict(
         else:
             legacy_class = "FAKE"
             msg = "High linguistic risk combined with unverifiable claims."
-        confidence = 50.0
+        # Confidence reflects how strongly the linguistic analysis supports the classification.
+        # No external evidence was found, so confidence is based on linguistic signal strength.
+        if ling_penalty <= 5.0:
+            # Clean journalistic text — high confidence it's credible
+            confidence = round(min(75.0, final_credibility * 0.85), 1)
+        elif ling_penalty <= 20.0:
+            # Some mild signals — moderate confidence
+            confidence = round(min(65.0, final_credibility * 0.75), 1)
+        else:
+            # Elevated linguistic risk — lower confidence in any direction
+            confidence = round(max(35.0, final_credibility * 0.6), 1)
 
     return primary_verdict, legacy_class, final_credibility, fake_probability, round(confidence, 1), msg

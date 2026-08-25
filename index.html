@@ -16,8 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4.5">
-  <script src="config.js?v=4.5"></script>
+  <link rel="stylesheet" href="style.css?v=5.0">
+  <script src="config.js?v=5.0"></script>
 </head>
 <body>
   <!-- Ambient background -->
@@ -224,14 +224,14 @@
             <div class="verdict-left">
               <!-- Gauge -->
               <div class="gauge-wrap" aria-hidden="true">
-                <svg class="gauge-svg" viewBox="0 0 100 100" width="130" height="130">
+                <svg class="gauge-svg" viewBox="0 0 100 100" width="140" height="140">
                   <circle class="gauge-bg" cx="50" cy="50" r="42"/>
                   <circle class="gauge-ring" id="gauge-ring" cx="50" cy="50" r="42"/>
                 </svg>
                 <div class="gauge-center">
                   <div class="gauge-num-row">
-                    <span id="gauge-val" class="gauge-num">—</span>
-                    <span class="gauge-pct">%</span>
+                    <span id="gauge-val" class="gauge-num">&mdash;</span>
+                    <span id="gauge-pct" class="gauge-pct">%</span>
                   </div>
                   <span id="gauge-lbl" class="gauge-lbl">REAL</span>
                 </div>
@@ -241,41 +241,28 @@
               <div class="verdict-body">
                 <div class="verdict-badges" id="verdict-badges">
                   <span id="primary-badge" class="verdict-badge unverified">UNVERIFIED</span>
-                  <span id="hero-meter-badge" class="hero-meter-badge real"><span class="hm-dot"></span><strong id="hero-meter-text">87% REAL</strong></span>
-                  <span id="legacy-badge" class="legacy-badge">—</span>
-                  <span id="tone-badge" class="tone-badge">—</span>
+                  <span id="legacy-badge" class="legacy-badge">&mdash;</span>
+                  <span id="tone-badge" class="tone-badge">&mdash;</span>
                 </div>
                 <h3 id="verdict-headline" class="verdict-headline">Analysis Result</h3>
-                <p id="verdict-msg" class="verdict-msg">—</p>
+                <p id="verdict-msg" class="verdict-msg">&mdash;</p>
 
-                <!-- Dual Real (Green) vs Fake (Red) Percentage Bar -->
+                <!-- Continuous Real/Fake Percentage Bar -->
                 <div class="verdict-bar-wrap">
                   <div class="verdict-bar-labels">
                     <span class="vbar-lbl-real"><span class="vbar-dot green"></span>True / Credible: <strong id="vbar-val-real">0%</strong></span>
                     <span class="vbar-lbl-fake"><span class="vbar-dot red"></span>False / Deceptive: <strong id="vbar-val-fake">0%</strong></span>
                   </div>
-                  <div class="verdict-dual-track">
-                    <div class="verdict-dual-real" id="vbar-fill-real" style="width: 0%;"></div>
-                    <div class="verdict-dual-fake" id="vbar-fill-fake" style="width: 0%;"></div>
+                  <div class="verdict-bar-track">
+                    <div class="verdict-bar-fill" id="vbar-fill" style="width: 50%;"></div>
                   </div>
-                </div>
-
-                <!-- Calculation Reasoning & Confidence Box -->
-                <div class="verdict-reasoning-box" id="verdict-reasoning-box">
-                  <div class="vr-head">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                    <span>Calculation Reasoning & Confidence Basis</span>
-                  </div>
-                  <ul class="vr-list" id="verdict-reasoning-list">
-                    <li>Deterministic evaluation from verified public sources & linguistic signals.</li>
-                  </ul>
                 </div>
 
                 <div class="verdict-metrics">
-                  <div class="vm"><span class="vm-l">Deception Risk</span><span class="vm-v" id="vm-fake">—</span></div>
-                  <div class="vm"><span class="vm-l">Evidence Confidence</span><span class="vm-v" id="vm-conf">—</span></div>
-                  <div class="vm"><span class="vm-l">Words Analyzed</span><span class="vm-v" id="vm-words">—</span></div>
-                  <div class="vm"><span class="vm-l">Claims Extracted</span><span class="vm-v" id="vm-claims">—</span></div>
+                  <div class="vm"><span class="vm-l">Deception Risk</span><span class="vm-v" id="vm-fake">&mdash;</span></div>
+                  <div class="vm"><span class="vm-l">Evidence Confidence</span><span class="vm-v" id="vm-conf">&mdash;</span></div>
+                  <div class="vm"><span class="vm-l">Words Analyzed</span><span class="vm-v" id="vm-words">&mdash;</span></div>
+                  <div class="vm"><span class="vm-l">Claims Extracted</span><span class="vm-v" id="vm-claims">&mdash;</span></div>
                 </div>
               </div>
             </div>
@@ -476,6 +463,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=4.5"></script>
+  <script src="app.js?v=5.0"></script>
 </body>
 </html>
