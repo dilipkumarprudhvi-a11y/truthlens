@@ -16,8 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4.0">
-  <script src="config.js?v=4.0"></script>
+  <link rel="stylesheet" href="style.css?v=4.5">
+  <script src="config.js?v=4.5"></script>
 </head>
 <body>
   <!-- Ambient background -->
@@ -241,6 +241,7 @@
               <div class="verdict-body">
                 <div class="verdict-badges" id="verdict-badges">
                   <span id="primary-badge" class="verdict-badge unverified">UNVERIFIED</span>
+                  <span id="hero-meter-badge" class="hero-meter-badge real"><span class="hm-dot"></span><strong id="hero-meter-text">87% REAL</strong></span>
                   <span id="legacy-badge" class="legacy-badge">—</span>
                   <span id="tone-badge" class="tone-badge">—</span>
                 </div>
@@ -257,6 +258,17 @@
                     <div class="verdict-dual-real" id="vbar-fill-real" style="width: 0%;"></div>
                     <div class="verdict-dual-fake" id="vbar-fill-fake" style="width: 0%;"></div>
                   </div>
+                </div>
+
+                <!-- Calculation Reasoning & Confidence Box -->
+                <div class="verdict-reasoning-box" id="verdict-reasoning-box">
+                  <div class="vr-head">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                    <span>Calculation Reasoning & Confidence Basis</span>
+                  </div>
+                  <ul class="vr-list" id="verdict-reasoning-list">
+                    <li>Deterministic evaluation from verified public sources & linguistic signals.</li>
+                  </ul>
                 </div>
 
                 <div class="verdict-metrics">
@@ -464,6 +476,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=4.0"></script>
+  <script src="app.js?v=4.5"></script>
 </body>
 </html>

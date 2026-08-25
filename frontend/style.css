@@ -561,6 +561,90 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   transition: width 1.2s var(--ease-smooth);
 }
 
+/* Hero Meter Badge */
+.hero-meter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .88rem;
+  font-weight: 800;
+  padding: .35rem .95rem;
+  border-radius: var(--r-full);
+  letter-spacing: .03em;
+  transition: all .3s ease;
+}
+.hero-meter-badge.real {
+  background: rgba(34, 197, 94, 0.2);
+  color: #22C55E;
+  border: 1.5px solid #22C55E;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.35);
+}
+.hero-meter-badge.fake {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+  border: 1.5px solid #EF4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
+}
+.hero-meter-badge.suspicious {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+  border: 1.5px solid #F59E0B;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+}
+.hm-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Verdict Reasoning Box */
+.verdict-reasoning-box {
+  background: rgba(8, 14, 24, 0.75);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: .85rem 1.1rem;
+  margin-bottom: 1.15rem;
+}
+.vr-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--secondary);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: .5rem;
+}
+.vr-head svg { color: var(--secondary); flex-shrink: 0; }
+.vr-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.vr-list li {
+  font-size: .84rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  position: relative;
+  padding-left: 1.2rem;
+}
+.vr-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: var(--secondary);
+  font-weight: bold;
+}
+.vr-list li strong {
+  color: var(--text-main);
+}
+
 .verdict-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: .65rem; }
 .vm { background: rgba(8, 14, 24, 0.6); border: 1px solid var(--border); border-radius: var(--r-md); padding: .65rem .8rem; }
 .vm-l { display: block; font-size: .7rem; font-weight: 600; color: var(--text-dim); margin-bottom: .22rem; text-transform: uppercase; letter-spacing: .05em; }

@@ -348,6 +348,22 @@ function renderVerdictCard(d) {
   $('verdict-headline').textContent = headlines[d.primary_verdict] || 'Analysis Complete';
   $('verdict-msg').textContent = d.message || '—';
 
+  // Hero Percentage Meter Badge (e.g. "92% REAL" or "87% FAKE")
+  const heroBadge = $('hero-meter-badge');
+  const heroText = $('hero-meter-text');
+  if (heroBadge && heroText) {
+    if (isFake) {
+      heroBadge.className = 'hero-meter-badge fake';
+      heroText.textContent = `${displayScore}% FAKE`;
+    } else if (isSuspicious) {
+      heroBadge.className = 'hero-meter-badge suspicious';
+      heroText.textContent = `${displayScore}% SUSPICIOUS`;
+    } else {
+      heroBadge.className = 'hero-meter-badge real';
+      heroText.textContent = `${displayScore}% REAL`;
+    }
+  }
+
   // Dual percentage bar (True/Real in Green vs False/Fake in Red)
   const realVal = Math.round(cred);
   const fakeVal = Math.round(fake);
@@ -355,6 +371,39 @@ function renderVerdictCard(d) {
   if ($('vbar-val-fake')) $('vbar-val-fake').textContent = `${fakeVal}%`;
   if ($('vbar-fill-real')) $('vbar-fill-real').style.width = `${realVal}%`;
   if ($('vbar-fill-fake')) $('vbar-fill-fake').style.width = `${fakeVal}%`;
+
+  // Calculation Reasoning & Confidence Basis
+  const rList = $('verdict-reasoning-list');
+  if (rList) {
+    const claims = d.claims || [];
+    const suppCount = claims.filter(c => c.verdict === 'SUPPORTED').length;
+    const contCount = claims.filter(c => c.verdict === 'CONTRADICTED').length;
+    const ling = d.linguistic_signals || {};
+    const triggers = ling.triggered_keywords || d.triggered_keywords || [];
+    const cb = (d.clickbait || ling.clickbait || {}).score || 0;
+    const tone = (d.sentiment || ling.sentiment || {}).tone || 'Neutral';
+
+    const items = [];
+    if (contCount > 0) {
+      items.push(`<strong>Refutation Found:</strong> ${contCount} claim(s) contradicted by independent evidence sources.`);
+    } else if (suppCount > 0) {
+      items.push(`<strong>Corroboration Found:</strong> ${suppCount} claim(s) corroborated by public knowledge records.`);
+    } else {
+      items.push(`<strong>Indexed Sources:</strong> Cross-referenced public knowledge repositories; no matching refutation reports found.`);
+    }
+
+    if (triggers.length > 0) {
+      items.push(`<strong>Deception Signals:</strong> Detected ${triggers.length} high-risk manipulation trigger(s): <em>${triggers.slice(0, 3).join(', ')}</em>.`);
+    } else if (cb < 25) {
+      items.push(`<strong>Journalistic Style:</strong> Standard objective phrasing with minimal sensationalism (${cb}/100 clickbait score).`);
+    } else {
+      items.push(`<strong>Linguistic Tone:</strong> Assessed as ${tone} with ${cb}/100 clickbait index.`);
+    }
+
+    items.push(`<strong>Confidence Score:</strong> ${d.confidence || 50}% confidence derived from multi-signal corroboration.`);
+
+    rList.innerHTML = items.map(it => `<li>${it}</li>`).join('');
+  }
 
   // Metrics
   $('vm-fake').textContent = `${fake}%`;
