@@ -12,8 +12,11 @@ from bs4 import BeautifulSoup
 
 from ..schemas.analysis import UrlExtractResponse
 
-MAX_URL_RESPONSE_BYTES = 2 * 1024 * 1024  # 2MB max response
-URL_FETCH_TIMEOUT = 5.0  # 5 seconds max
+MAX_URL_RESPONSE_BYTES = 3 * 1024 * 1024  # 3MB max response
+URL_FETCH_TIMEOUT = 10.0  # 10 seconds max
+
+# ... (is_safe_url logic unchanged) ...
+
 
 
 def is_safe_url(target_url: str) -> bool:
@@ -70,8 +73,9 @@ async def extract_url_content(target_url: str) -> UrlExtractResponse:
         )
 
     headers = {
-        "User-Agent": "TruthLens-ArticleExtractor/3.0 (+https://truthlens.ai/bot)",
-        "Accept": "text/html,application/xhtml+xml"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9"
     }
 
     try:

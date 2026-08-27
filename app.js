@@ -214,6 +214,63 @@ async function callAnalyzeApi(payload) {
   throw lastErr || new Error('All endpoints unreachable');
 }
 
+async function callUrlExtractApi(targetUrl) {
+  const candidateUrls = [];
+  for (const base of API_ENDPOINTS) {
+    candidateUrls.push(`${base}/api/url/extract`);
+    candidateUrls.push(`${base}/url/extract`);
+  }
+
+  let lastErr;
+  for (const url of candidateUrls) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (r.ok) {
+        return await r.json();
+      } else if (r.status !== 404 && r.status !== 405) {
+        const err = await r.json().catch(() => ({ detail: r.statusText }));
+        throw new Error(err.detail || `HTTP ${r.status}`);
+      }
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('URL extraction service unavailable');
+}
+
+async function callOcrExtractApi(formData) {
+  const candidateUrls = [];
+  for (const base of API_ENDPOINTS) {
+    candidateUrls.push(`${base}/api/ocr/extract`);
+    candidateUrls.push(`${base}/ocr/extract`);
+  }
+
+  let lastErr;
+  for (const url of candidateUrls) {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        signal: AbortSignal.timeout(30000),
+      });
+      if (r.ok) {
+        return await r.json();
+      } else if (r.status !== 404 && r.status !== 405) {
+        const err = await r.json().catch(() => ({ detail: r.statusText }));
+        throw new Error(err.detail || `HTTP ${r.status}`);
+      }
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('OCR service unavailable');
+}
+
 /* ═══ MAIN ANALYZE FLOW ═════════════════════════════════════ */
 
 async function analyze(text) {
@@ -242,11 +299,84 @@ async function analyze(text) {
   }
 }
 
+/* ═══ URL & OCR FLOWS ════════════════════════════════════════ */
+
+async function fetchAndAnalyzeUrl(targetUrl) {
+  if (!targetUrl || !targetUrl.trim()) {
+    showToast('Please enter a valid URL', 'error');
+    return;
+  }
+  let url = targetUrl.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  const btn = ui.fetchUrlBtn || $('fetch-url-btn');
+  setBtnLoading(btn, true);
+  showToast('Fetching and parsing web article…', 'info');
+
+  try {
+    const data = await callUrlExtractApi(url);
+    if (!data.text || data.text.length < 15) {
+      throw new Error(data.error || 'Could not extract readable article text from this URL.');
+    }
+    const words = data.length || data.text.split(/\s+/).length;
+    showToast(`Extracted article (${words} words). Analyzing…`, 'success');
+    ui.textInput.value = data.text;
+    updateCounts();
+    switchTab('text');
+    await analyze(data.text);
+  } catch (e) {
+    showToast(`URL extraction failed: ${e.message}`, 'error');
+  } finally {
+    setBtnLoading(btn, false);
+  }
+}
+
+async function ocrAndAnalyze(file) {
+  if (!file) return;
+  const ocrNote = $('ocr-note');
+  if (ocrNote) ocrNote.textContent = `Processing OCR for ${file.name}…`;
+  showToast('Scanning image with Optical Character Recognition…', 'info');
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const data = await callOcrExtractApi(formData);
+    if (data.status === 'success' && data.text && data.text.trim().length >= 15) {
+      const wordCount = data.text.split(/\s+/).length;
+      if (ocrNote) ocrNote.textContent = `Extracted ${wordCount} words from screenshot`;
+      showToast(`Text extracted (${wordCount} words). Analyzing…`, 'success');
+      ui.textInput.value = data.text.trim();
+      updateCounts();
+      switchTab('text');
+      await analyze(data.text.trim());
+    } else if (data.status === 'no_text') {
+      if (ocrNote) ocrNote.textContent = 'No legible text detected';
+      showToast('No legible text characters found in the uploaded screenshot.', 'error');
+    } else {
+      const note = data.note || 'OCR could not process image. Please paste text directly.';
+      if (ocrNote) ocrNote.textContent = note;
+      showToast(note, 'error');
+    }
+  } catch (e) {
+    if (ocrNote) ocrNote.textContent = 'OCR processing failed';
+    showToast(`Image OCR failed: ${e.message}`, 'error');
+  }
+}
+
 function setBtnLoading(btn, on) {
+  if (!btn) return;
   const label = btn.querySelector('.btn-label');
   const spin = btn.querySelector('.btn-spinner');
   const icon = btn.querySelector('.btn-icon-svg');
-  if (label) label.textContent = on ? 'Analyzing…' : 'Analyze';
+  if (label) {
+    if (btn.id === 'fetch-url-btn') {
+      label.textContent = on ? 'Fetching…' : 'Fetch & Analyze';
+    } else {
+      label.textContent = on ? 'Analyzing…' : 'Analyze';
+    }
+  }
   if (spin) spin.classList.toggle('hidden', !on);
   if (icon) icon.style.display = on ? 'none' : '';
   btn.disabled = on;
