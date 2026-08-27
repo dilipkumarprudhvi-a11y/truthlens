@@ -62,6 +62,7 @@ def is_safe_url(target_url: str) -> bool:
 async def extract_url_content(target_url: str) -> UrlExtractResponse:
     """
     Securely fetches article HTML and extracts title, author, date, and clean body text.
+    Uses multi-agent fallback for Wikipedia and anti-bot protected news sites.
     """
     if not is_safe_url(target_url):
         return UrlExtractResponse(
@@ -72,70 +73,71 @@ async def extract_url_content(target_url: str) -> UrlExtractResponse:
             error="Security Error: Target URL is invalid or points to an inaccessible/private network address."
         )
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9"
-    }
+    # Multi-agent header configurations
+    is_wiki = "wikipedia.org" in target_url.lower() or "wikimedia.org" in target_url.lower()
+    
+    agent_options = [
+        # Dedicated Research Bot Agent (Required by Wikipedia & open knowledge repositories)
+        {
+            "User-Agent": "TruthLens/3.0 (https://dilipkumarprudhvi-a11y.github.io/truthlens/; contact@truthlens.ai)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9"
+        },
+        # Standard Modern Browser Agent (For general news publishers)
+        {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+    ]
 
-    try:
-        async with httpx.AsyncClient(timeout=URL_FETCH_TIMEOUT, follow_redirects=True, max_redirects=3) as client:
-            res = await client.get(target_url, headers=headers)
+    if not is_wiki:
+        # Prioritize standard browser agent for non-wiki sites
+        agent_options.reverse()
 
-            if res.status_code != 200:
-                return UrlExtractResponse(
-                    url=target_url,
-                    text="",
-                    length=0,
-                    success=False,
-                    error=f"Server returned HTTP status code {res.status_code}."
-                )
+    html = None
+    last_status = None
+    last_error = None
 
-            # Validate Content-Type
-            content_type = res.headers.get("Content-Type", "").lower()
-            if "text/html" not in content_type and "application/xhtml" not in content_type:
-                return UrlExtractResponse(
-                    url=target_url,
-                    text="",
-                    length=0,
-                    success=False,
-                    error=f"Unsupported content type '{content_type}'. TruthLens extracts HTML web articles only."
-                )
+    async with httpx.AsyncClient(timeout=URL_FETCH_TIMEOUT, follow_redirects=True, max_redirects=4) as client:
+        for headers in agent_options:
+            try:
+                res = await client.get(target_url, headers=headers)
+                last_status = res.status_code
+                if res.status_code == 200:
+                    content_type = res.headers.get("Content-Type", "").lower()
+                    if "text/html" in content_type or "application/xhtml" in content_type or "text/plain" in content_type:
+                        html = res.text[:MAX_URL_RESPONSE_BYTES]
+                        break
+            except httpx.TimeoutException:
+                last_error = "Request timed out while connecting to the target server."
+            except Exception as e:
+                last_error = f"Connection error: {str(e)}"
 
-            html = res.text[:MAX_URL_RESPONSE_BYTES]
-
-    except httpx.TimeoutException:
+    if not html:
         return UrlExtractResponse(
             url=target_url,
             text="",
             length=0,
             success=False,
-            error="Request timed out while connecting to the target server."
-        )
-    except Exception as e:
-        return UrlExtractResponse(
-            url=target_url,
-            text="",
-            length=0,
-            success=False,
-            error=f"Failed to fetch URL: {str(e)}"
+            error=last_error or f"Server returned HTTP status code {last_status or 'error'}."
         )
 
     # Parse HTML with BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
 
-    # Remove script, style, nav, footer, ads
-    for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript", "form", "svg"]):
+    # Remove script, style, nav, footer, ads, tables, sidebars
+    for tag in soup(["script", "style", "nav", "footer", "header", "aside", "noscript", "form", "svg", "table"]):
         tag.decompose()
 
     # Extract Title
     title = None
-    if soup.find("meta", property="og:title"):
+    if soup.find("h1"):
+        title = soup.find("h1").get_text()
+    elif soup.find("meta", property="og:title"):
         title = soup.find("meta", property="og:title").get("content")
     elif soup.find("title"):
         title = soup.find("title").get_text()
-    elif soup.find("h1"):
-        title = soup.find("h1").get_text()
 
     # Extract Author
     author = None
@@ -152,15 +154,24 @@ async def extract_url_content(target_url: str) -> UrlExtractResponse:
         publish_date = soup.find("time").get_text()
 
     # Extract Body Content
-    article_container = soup.find("article") or soup.find("main") or soup.body
+    article_container = (
+        soup.find("div", id="mw-content-text")
+        or soup.find("article")
+        or soup.find("main")
+        or soup.find("div", class_=lambda c: c and any(k in c.lower() for k in ["article", "content", "story", "post"]))
+        or soup.body
+    )
     paragraphs = article_container.find_all("p") if article_container else []
     extracted_paragraphs = [p.get_text().strip() for p in paragraphs if len(p.get_text().strip()) > 30]
 
-    body_text = "\n\n".join(extracted_paragraphs)
+    # Limit to first 20 paragraphs to prevent 10,000-word overloads on encyclopedias
+    selected_paragraphs = extracted_paragraphs[:20]
+    body_text = "\n\n".join(selected_paragraphs)
+    
     if not body_text and article_container:
         body_text = article_container.get_text(separator="\n", strip=True)
 
-    if not body_text or len(body_text.strip()) < 40:
+    if not body_text or len(body_text.strip()) < 30:
         return UrlExtractResponse(
             url=target_url,
             title=title.strip() if title else None,
@@ -169,7 +180,7 @@ async def extract_url_content(target_url: str) -> UrlExtractResponse:
             text="",
             length=0,
             success=False,
-            error="Could not extract substantial article text. The page may require JavaScript or authentication."
+            error="Could not extract readable article text. The page may require JavaScript or authentication."
         )
 
     clean_text = body_text.strip()
